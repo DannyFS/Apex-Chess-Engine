@@ -301,6 +301,14 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
         const bool gives_check = pos.gives_check(m);
         const int new_depth = depth - 1;
 
+        // EXP-007: late move pruning and futility pruning of quiet moves at shallow depth.
+        // Only once a move has been searched (best is not a mated score), so a node never
+        // returns without a real score.
+        if (!pv_node && !in_check && quiet && !gives_check && best > VALUE_MATED_IN_MAX_PLY) {
+            if (depth <= 6 && legal > 3 + depth * depth) continue;
+            if (depth <= 6 && static_eval + 100 + 100 * depth <= alpha) continue;
+        }
+
         pos.make_move(m);
         Value score;
         if (legal == 1) {
