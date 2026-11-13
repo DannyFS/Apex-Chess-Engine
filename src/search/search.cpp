@@ -238,6 +238,11 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
 
     Value static_eval = in_check ? VALUE_NONE : evaluate(pos);
 
+    // EXP-004: reverse futility pruning (static null move) at shallow depth.
+    if (!pv_node && !in_check && !root && depth <= 8 && std::abs(beta) < VALUE_MATE_IN_MAX_PLY &&
+        static_eval - 80 * depth >= beta)
+        return static_eval;
+
     // EXP-001: null-move pruning. Skipped in PV nodes, in check, right after another
     // null move, and when the side to move has only pawns (zugzwang risk).
     if (!pv_node && !in_check && !root && depth >= 3 && static_eval >= beta && pos.plies_from_null() > 0 &&
