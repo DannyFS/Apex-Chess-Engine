@@ -43,3 +43,14 @@ Cost estimate: 2–6 h of 4-core time per large-gain test; LTC confirmation only
 | EXP-014 | Correction history (pawn-key) | Online correction of systematic eval bias | Medium |
 
 Each row becomes a full entry (template above) when it starts.
+
+---
+
+## EXP-001: Null-move pruning   [status: running]
+Hypothesis: adding null-move pruning to the M3 baseline gains a lot of strength at STC.
+Mechanism / why it could gain Elo: in non-PV nodes where static eval ≥ beta, letting the opponent move twice and still failing high at depth − R proves a cutoff cheaply. This prunes most refutation subtrees and gives roughly 2–3 plies more depth at equal time.
+Implementation: R = 3 + depth/3 + min((eval − beta)/200, 3); requires depth ≥ 3, not in check, not a PV node, previous move not null, and side to move has a non-pawn piece (zugzwang guard). Mate scores from the null search are clamped to beta.
+Bench: 8689072 → 3521991 (−59% nodes to depth 6).
+Expected effect & cost: +80 Elo or more; SPRT [0, 10] at STC; about 1–3 h on 3 game slots.
+Test plan & stop rule: fastchess, 8+0.08, 16 MB, UHO_Lichess_4852_v1, pentanomial SPRT [0, 10] normalized Elo, α = β = 0.05, max 20k games, seed 101.
+Result: pending.
