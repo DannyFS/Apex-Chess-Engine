@@ -8,6 +8,7 @@
 #include "search.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 
 #include "core/movegen.h"
@@ -46,6 +47,18 @@ std::string score_to_uci(Value v) {
 
 namespace {
 constexpr int HistoryMax = 16384;
+
+// EXP-003: late move reduction table, R = 0.75 + ln(depth) * ln(moveNumber) / 2.25
+struct ReductionTable {
+    int r[64][64];
+    ReductionTable() {
+        for (int d = 0; d < 64; ++d)
+            for (int m = 0; m < 64; ++m)
+                r[d][m] = (d == 0 || m == 0) ? 0 : int(0.75 + std::log(d) * std::log(m) / 2.25);
+    }
+};
+const ReductionTable Reductions;
+inline int lmr(int depth, int move_number) { return Reductions.r[std::min(depth, 63)][std::min(move_number, 63)]; }
 inline void apply_gravity(int& h, int bonus) {
     bonus = std::clamp(bonus, -HistoryMax, HistoryMax);
     h += bonus - h * std::abs(bonus) / HistoryMax;
@@ -254,14 +267,29 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
         if (!pos.legal(m)) continue;
         ++legal;
 
+        const bool quiet = !m.is_tactical();
+        const bool is_killer = m == killers[ply][0] || m == killers[ply][1];
+        const bool gives_check = pos.gives_check(m);
+        const int new_depth = depth - 1;
+
         pos.make_move(m);
         Value score;
         if (legal == 1) {
-            score = -negamax(pos, -beta, -alpha, depth - 1, ply + 1, pv_node);
+            score = -negamax(pos, -beta, -alpha, new_depth, ply + 1, pv_node);
         } else {
-            score = -negamax(pos, -alpha - 1, -alpha, depth - 1, ply + 1, false);
+            // EXP-003: reduce late quiet moves, verify at full depth if they beat alpha.
+            int r = 0;
+            if (depth >= 3 && quiet && !in_check && !gives_check && legal > 1 + int(pv_node)) {
+                r = lmr(depth, legal);
+                r -= int(pv_node);
+                r -= int(is_killer);
+                r = std::clamp(r, 0, new_depth - 1);
+            }
+            score = -negamax(pos, -alpha - 1, -alpha, new_depth - r, ply + 1, false);
+            if (r > 0 && score > alpha)
+                score = -negamax(pos, -alpha - 1, -alpha, new_depth, ply + 1, false);
             if (score > alpha && score < beta)
-                score = -negamax(pos, -beta, -alpha, depth - 1, ply + 1, true);
+                score = -negamax(pos, -beta, -alpha, new_depth, ply + 1, true);
         }
         pos.unmake_move(m);
 
