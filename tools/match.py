@@ -49,6 +49,8 @@ def main():
 
     args.out = os.path.abspath(args.out)
     args.book = os.path.abspath(args.book)
+    if os.sep in args.fastchess:
+        args.fastchess = os.path.abspath(args.fastchess)
     os.makedirs(args.out, exist_ok=True)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     base = os.path.join(args.out, f"{stamp}-{args.label}")
