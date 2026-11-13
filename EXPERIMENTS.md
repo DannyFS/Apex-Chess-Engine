@@ -46,11 +46,12 @@ Each row becomes a full entry (template above) when it starts.
 
 ---
 
-## EXP-001: Null-move pruning   [status: running]
+## EXP-001: Null-move pruning   [status: accepted]
 Hypothesis: adding null-move pruning to the M3 baseline gains a lot of strength at STC.
 Mechanism / why it could gain Elo: in non-PV nodes where static eval ≥ beta, letting the opponent move twice and still failing high at depth − R proves a cutoff cheaply. This prunes most refutation subtrees and gives roughly 2–3 plies more depth at equal time.
 Implementation: R = 3 + depth/3 + min((eval − beta)/200, 3); requires depth ≥ 3, not in check, not a PV node, previous move not null, and side to move has a non-pawn piece (zugzwang guard). Mate scores from the null search are clamped to beta.
 Bench: 8689072 → 3521991 (−59% nodes to depth 6).
 Expected effect & cost: +80 Elo or more; SPRT [0, 10] at STC; about 1–3 h on 3 game slots.
 Test plan & stop rule: fastchess, 8+0.08, 16 MB, UHO_Lichess_4852_v1, pentanomial SPRT [0, 10] normalized Elo, α = β = 0.05, max 20k games, seed 101.
-Result: pending.
+Result: **H1 accepted** after 266 games (LLR 2.97). Elo +134.3 ± 36.2 (nElo +171.7 ± 41.8); W/L/D 151/53/62; pentanomial [3, 11, 45, 33, 41]; 0 time forfeits. See BENCHMARKS.md "EXP-001".
+Analysis: as expected, null-move pruning is a very large gain over a pure alpha-beta baseline. The gain resolved quickly at [0, 10]. The zugzwang guard (non-pawn material) stays; a verification search can be tested later if endgame suites show zugzwang errors.

@@ -53,3 +53,9 @@ correctness: test_core (21-position perft + fuzz) and --deep (1.52B perft nodes)
 validation run 1 (self-play, 1+0.01, conc 4, UHO_Lichess_4852_v1, seed 1): 1000 games, 0 crashes, 0 illegal moves, **10 time forfeits (1–13 ms overrun)**. The forfeits cluster where compilation was running concurrently on the same 4 cores (oversubscription).
 validation run 2 (same, seed 2, idle machine): 1000 games, **0 time forfeits, 0 crashes, 0 illegal moves**. Self-play score 49.55% (Elo -3.1 ± 15.9, a sanity check for symmetric play).
 methodology note: matches must not share cores with other work. From now on SPRTs on this 4-vCPU machine use concurrency 3, leaving one core for development.
+
+### EXP-001 (null-move pruning): 2026-11-13. New champion.
+commit: 2b492de   machine: cloud-xeon-4vcpu   net: none (bootstrap HCE)   methodology: v1
+change vs baseline (M3-baseline): adaptive null-move pruning
+bench: nodes=3521991
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 101, bounds [0, 10] nElo → **H1 accepted**; games=266; Elo=+134.3 ± 36.2; nElo=+171.7 ± 41.8; pentanomial=[3, 11, 45, 33, 41]; LLR=2.97 (−2.94, 2.94); time forfeits 0
