@@ -47,6 +47,8 @@ def main():
     tc = args.tc or tc
     hash_mb = args.hash or hash_mb
 
+    args.out = os.path.abspath(args.out)
+    args.book = os.path.abspath(args.book)
     os.makedirs(args.out, exist_ok=True)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     base = os.path.join(args.out, f"{stamp}-{args.label}")
@@ -73,7 +75,8 @@ def main():
     print(" ".join(cmd), flush=True)
     log = open(base + ".log", "w")
     log.write(" ".join(cmd) + "\n")
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    # fastchess writes config.json (for -recover) into its working directory; keep it out of the repo.
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=args.out)
     tail = []
     for line in proc.stdout:
         log.write(line)
