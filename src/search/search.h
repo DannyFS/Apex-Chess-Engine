@@ -8,6 +8,7 @@
 #include <functional>
 #include <string>
 
+#include "core/movegen.h"
 #include "core/position.h"
 #include "search/tt.h"
 
@@ -72,6 +73,12 @@ private:
     int seldepth = 0;
     PV pv_table[MAX_PLY + 1];
     Move root_best = Move::none();
+
+    // Quiet-move ordering heuristics (EXP-002)
+    Move killers[MAX_PLY + 2][2] = {};
+    int history[COLOR_NB][SQUARE_NB][SQUARE_NB] = {};
+    void update_quiet_stats(const Position& pos, Move best, const Move* quiets, int n_quiets, int depth, int ply);
+    void score_moves(const Position& pos, MoveList& list, Move tt_move, int ply) const;
 };
 
 std::string score_to_uci(Value v);

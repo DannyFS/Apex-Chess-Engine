@@ -19,23 +19,6 @@ namespace {
 
 constexpr int OrderValue[PIECE_TYPE_NB + 1] = {1, 3, 3, 5, 9, 20, 0};
 
-// Scores moves in-place: TT move first, then captures/promotions by MVV-LVA, then quiets.
-void score_moves(const Position& pos, MoveList& list, Move tt_move) {
-    for (int i = 0; i < list.size(); ++i) {
-        Move m = list[i].move;
-        int s = 0;
-        if (m == tt_move) {
-            s = 1 << 30;
-        } else if (m.is_tactical()) {
-            PieceType victim = m.is_ep() ? PAWN : (m.is_capture() ? type_of(pos.piece_on(m.to())) : NO_PIECE_TYPE);
-            PieceType attacker = type_of(pos.piece_on(m.from()));
-            s = (1 << 20) + 64 * OrderValue[victim] - OrderValue[attacker];
-            if (m.is_promotion()) s += m.promo_type() == QUEEN ? 512 : -(1 << 19);
-        }
-        list[i].score = s;
-    }
-}
-
 // Selection sort step: brings the best remaining move to index i.
 inline Move pick(MoveList& list, int i) {
     int best = i;
@@ -61,7 +44,55 @@ std::string score_to_uci(Value v) {
     return "cp " + std::to_string(v);
 }
 
-void Search::clear() {}
+namespace {
+constexpr int HistoryMax = 16384;
+inline void apply_gravity(int& h, int bonus) {
+    bonus = std::clamp(bonus, -HistoryMax, HistoryMax);
+    h += bonus - h * std::abs(bonus) / HistoryMax;
+}
+}  // namespace
+
+void Search::clear() {
+    for (auto& k : killers) k[0] = k[1] = Move::none();
+    std::fill(&history[0][0][0], &history[0][0][0] + sizeof(history) / sizeof(int), 0);
+}
+
+// Scores moves in-place: TT move, captures/promotions by MVV-LVA, killers, then quiets by history.
+void Search::score_moves(const Position& pos, MoveList& list, Move tt_move, int ply) const {
+    const Color us = pos.side_to_move();
+    for (int i = 0; i < list.size(); ++i) {
+        Move m = list[i].move;
+        int s;
+        if (m == tt_move) {
+            s = 1 << 30;
+        } else if (m.is_tactical()) {
+            PieceType victim = m.is_ep() ? PAWN : (m.is_capture() ? type_of(pos.piece_on(m.to())) : NO_PIECE_TYPE);
+            PieceType attacker = type_of(pos.piece_on(m.from()));
+            s = (1 << 20) + 64 * OrderValue[victim] - OrderValue[attacker];
+            if (m.is_promotion()) s += m.promo_type() == QUEEN ? 512 : -(1 << 19);
+        } else if (m == killers[ply][0]) {
+            s = (1 << 19) + 2;
+        } else if (m == killers[ply][1]) {
+            s = (1 << 19) + 1;
+        } else {
+            s = history[us][m.from()][m.to()];
+        }
+        list[i].score = s;
+    }
+}
+
+void Search::update_quiet_stats(const Position& pos, Move best, const Move* quiets, int n_quiets, int depth,
+                                int ply) {
+    const Color us = pos.side_to_move();
+    if (killers[ply][0] != best) {
+        killers[ply][1] = killers[ply][0];
+        killers[ply][0] = best;
+    }
+    int bonus = std::min(16 * depth * depth + 32 * depth, 1200);
+    apply_gravity(history[us][best.from()][best.to()], bonus);
+    for (int i = 0; i < n_quiets; ++i)
+        if (quiets[i] != best) apply_gravity(history[us][quiets[i].from()][quiets[i].to()], -bonus);
+}
 
 std::int64_t Search::elapsed_ms() const {
     return std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - start).count();
@@ -208,9 +239,12 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
 
     MoveList list;
     generate<GEN_ALL>(pos, list);
-    score_moves(pos, list, tt_move);
+    score_moves(pos, list, tt_move, ply);
+    killers[ply + 1][0] = killers[ply + 1][1] = Move::none();
 
     Value best = -VALUE_INFINITE;
+    Move quiets_tried[64];
+    int n_quiets = 0;
     Move best_move = Move::none();
     const Value old_alpha = alpha;
     int legal = 0;
@@ -232,6 +266,7 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
         pos.unmake_move(m);
 
         if (stop_flag.load(std::memory_order_relaxed)) return 0;
+        if (!m.is_tactical() && n_quiets < 64) quiets_tried[n_quiets++] = m;
 
         if (score > best) {
             best = score;
@@ -245,7 +280,10 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
                 pv.length = 1 + child.length;
                 std::copy(child.moves, child.moves + child.length, pv.moves + 1);
                 if (root) root_best = m;
-                if (alpha >= beta) break;
+                if (alpha >= beta) {
+                    if (!m.is_tactical()) update_quiet_stats(pos, m, quiets_tried, n_quiets, depth, ply);
+                    break;
+                }
             }
         }
     }
@@ -286,7 +324,7 @@ Value Search::qsearch(Position& pos, Value alpha, Value beta, int ply, bool pv_n
     MoveList list;
     if (in_check) generate<GEN_ALL>(pos, list);  // evasions: all moves
     else generate<GEN_TACTICAL>(pos, list);
-    score_moves(pos, list, Move::none());
+    score_moves(pos, list, Move::none(), ply);
 
     int legal = 0;
     for (int i = 0; i < list.size(); ++i) {
