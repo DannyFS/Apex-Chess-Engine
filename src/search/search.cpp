@@ -171,7 +171,31 @@ SearchResult Search::run(Position& pos, const SearchLimits& limits, bool silent)
     for (int depth = 1; depth <= max_depth; ++depth) {
         seldepth = 0;
         root_best = Move::none();
-        Value score = negamax(pos, -VALUE_INFINITE, VALUE_INFINITE, depth, 0, true);
+        // EXP-005: aspiration windows around the previous iteration's score.
+        Value score;
+        Value delta = 20;
+        Value alpha = -VALUE_INFINITE, beta = VALUE_INFINITE;
+        if (depth >= 4 && result.score != VALUE_NONE && std::abs(result.score) < VALUE_MATE_IN_MAX_PLY) {
+            alpha = std::max(result.score - delta, -VALUE_INFINITE);
+            beta = std::min(result.score + delta, VALUE_INFINITE);
+        }
+        while (true) {
+            score = negamax(pos, alpha, beta, depth, 0, true);
+            if (stop_flag.load(std::memory_order_relaxed)) break;
+            if (score <= alpha) {
+                beta = (alpha + beta) / 2;
+                alpha = std::max(score - delta, -VALUE_INFINITE);
+            } else if (score >= beta) {
+                beta = std::min(score + delta, VALUE_INFINITE);
+            } else {
+                break;
+            }
+            delta += delta / 2;
+            if (delta > 1000) {
+                alpha = -VALUE_INFINITE;
+                beta = VALUE_INFINITE;
+            }
+        }
 
         // Aborted iteration: root_best is only set by fully searched root moves, and the
         // previous best move is searched first, so a set root_best is safe to play.
