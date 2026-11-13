@@ -65,3 +65,12 @@ Bench: 3521991 → 2017210.
 Test plan: same as EXP-001, seed 102, base = EXP-001 champion.
 Result: **H1 accepted** after 284 games (LLR 2.99). Elo +125.0 ± 35.1 (nElo +157.6 ± 40.4); W/L/D 154/56/74; pentanomial [4, 14, 45, 38, 41]; 0 time forfeits.
 Analysis: much larger than typical reported gains for these heuristics in mature engines, which is expected because the baseline ordered quiets in generation order. It also prepares the ground for LMR (EXP-003), which depends on good quiet ordering.
+
+---
+
+## EXP-003: Late move reductions   [status: accepted]
+Hypothesis: with history-based quiet ordering (EXP-002), late quiet moves rarely raise alpha, so searching them at reduced depth (with a full-depth re-search on fail-high) saves a lot of effort at little risk.
+Implementation: R = int(0.75 + ln(d)·ln(m)/2.25) for quiet, non-checking moves when not in check, depth ≥ 3 and the move is beyond the first (two in PV nodes); −1 in PV nodes, −1 for killers; clamped to [0, d − 2]. Null-window reduced search → full-depth null-window re-search → PV re-search.
+Bench: 2017210 → 571441.
+Result: **H1 accepted** after 216 games (LLR 2.96). Elo +188.7 ± 41.1 (nElo +259.5 ± 46.3); W/L/D 134/27/55; pentanomial [1, 4, 30, 33, 40]; 0 time forfeits.
+Analysis: the largest single gain so far, consistent with LMR being the dominant depth multiplier in modern engines. The formula and adjustments are untuned (SPSA candidate in M10); history-based reduction adjustments are a later experiment.

@@ -65,3 +65,9 @@ commit: (this commit)   machine: cloud-xeon-4vcpu   net: none   methodology: v1
 change vs baseline (EXP-001): killer moves + butterfly history for quiet ordering
 bench: nodes=2017210
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 102, [0, 10] → **H1 accepted**; games=284; Elo=+125.0 ± 35.1; nElo=+157.6 ± 40.4; pentanomial=[4, 14, 45, 38, 41]; LLR=2.99; time forfeits 0
+
+### EXP-003 (late move reductions): 2026-11-13. New champion.
+commit: (this commit)   machine: cloud-xeon-4vcpu   net: none   methodology: v1
+change vs baseline (EXP-002): log-log LMR
+bench: nodes=571441
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 103, [0, 10] → **H1 accepted**; games=216; Elo=+188.7 ± 41.1; nElo=+259.5 ± 46.3; pentanomial=[1, 4, 30, 33, 40]; LLR=2.96; time forfeits 0
