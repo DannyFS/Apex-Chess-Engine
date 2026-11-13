@@ -71,3 +71,9 @@ commit: (this commit)   machine: cloud-xeon-4vcpu   net: none   methodology: v1
 change vs baseline (EXP-002): log-log LMR
 bench: nodes=571441
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 103, [0, 10] → **H1 accepted**; games=216; Elo=+188.7 ± 41.1; nElo=+259.5 ± 46.3; pentanomial=[1, 4, 30, 33, 40]; LLR=2.96; time forfeits 0
+
+### EXP-004 (reverse futility pruning): 2026-11-13. New champion.
+commit: (this commit)   machine: cloud-xeon-4vcpu   net: none   methodology: v1
+change vs baseline (EXP-003): RFP depth ≤ 8, margin 80·depth
+bench: nodes=405629
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 104, [0, 10] → **H1 accepted**; games=398; Elo=+74.5 ± 25.7; nElo=+102.3 ± 34.1; pentanomial=[6, 26, 79, 54, 34]; LLR=2.96; time forfeits 0

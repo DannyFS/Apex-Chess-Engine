@@ -74,3 +74,12 @@ Implementation: R = int(0.75 + ln(d)·ln(m)/2.25) for quiet, non-checking moves 
 Bench: 2017210 → 571441.
 Result: **H1 accepted** after 216 games (LLR 2.96). Elo +188.7 ± 41.1 (nElo +259.5 ± 46.3); W/L/D 134/27/55; pentanomial [1, 4, 30, 33, 40]; 0 time forfeits.
 Analysis: the largest single gain so far, consistent with LMR being the dominant depth multiplier in modern engines. The formula and adjustments are untuned (SPSA candidate in M10); history-based reduction adjustments are a later experiment.
+
+---
+
+## EXP-004: Reverse futility pruning   [status: accepted]
+Hypothesis: at shallow depth in non-PV nodes, a static eval far above beta almost always holds, so returning early saves effort.
+Implementation: depth ≤ 8, not in check, non-PV, |beta| not a mate score, static_eval − 80·depth ≥ beta → return static_eval. No "improving" term yet (later experiment).
+Bench: 571441 → 405629.
+Result: **H1 accepted** after 398 games (LLR 2.96). Elo +74.5 ± 25.7 (nElo +102.3 ± 34.1); W/L/D 173/89/136; pentanomial [6, 26, 79, 54, 34]; 0 time forfeits.
+Analysis: a solid gain, smaller than NMP/LMR as expected. The margin (80/ply) is untuned and depends on the eval scale, so it must be re-checked when NNUE replaces the HCE (see RESEARCH §1.16).
