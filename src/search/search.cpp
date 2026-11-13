@@ -194,6 +194,18 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
 
     Value static_eval = in_check ? VALUE_NONE : evaluate(pos);
 
+    // EXP-001: null-move pruning. Skipped in PV nodes, in check, right after another
+    // null move, and when the side to move has only pawns (zugzwang risk).
+    if (!pv_node && !in_check && !root && depth >= 3 && static_eval >= beta && pos.plies_from_null() > 0 &&
+        pos.non_pawn_material_count(pos.side_to_move()) > 0) {
+        int R = 3 + depth / 3 + std::min((static_eval - beta) / 200, 3);
+        pos.make_null();
+        Value null_score = -negamax(pos, -beta, -beta + 1, depth - R, ply + 1, false);
+        pos.unmake_null();
+        if (stop_flag.load(std::memory_order_relaxed)) return 0;
+        if (null_score >= beta) return null_score >= VALUE_MATE_IN_MAX_PLY ? beta : null_score;
+    }
+
     MoveList list;
     generate<GEN_ALL>(pos, list);
     score_moves(pos, list, tt_move);

@@ -63,6 +63,7 @@ public:
     bool can_castle(int cr) const { return st().castling & cr; }
     Square ep_square() const { return st().ep; }
     int rule50() const { return st().rule50; }
+    int plies_from_null() const { return st().plies_from_null; }
     int game_ply() const { return ply_count; }
     Key key() const { return st().key; }
     Key pawn_key() const { return st().pawn_key; }
