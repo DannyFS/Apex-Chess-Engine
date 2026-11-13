@@ -55,3 +55,13 @@ Expected effect & cost: +80 Elo or more; SPRT [0, 10] at STC; about 1–3 h on 3
 Test plan & stop rule: fastchess, 8+0.08, 16 MB, UHO_Lichess_4852_v1, pentanomial SPRT [0, 10] normalized Elo, α = β = 0.05, max 20k games, seed 101.
 Result: **H1 accepted** after 266 games (LLR 2.97). Elo +134.3 ± 36.2 (nElo +171.7 ± 41.8); W/L/D 151/53/62; pentanomial [3, 11, 45, 33, 41]; 0 time forfeits. See BENCHMARKS.md "EXP-001".
 Analysis: as expected, null-move pruning is a very large gain over a pure alpha-beta baseline. The gain resolved quickly at [0, 10]. The zugzwang guard (non-pawn material) stays; a verification search can be tested later if endgame suites show zugzwang errors.
+
+---
+
+## EXP-002: Killer moves + butterfly history   [status: accepted]
+Hypothesis: ordering quiet moves by killers (2 per ply) and a gravity-bounded butterfly history improves cutoff rates, so the tree is smaller and the search reaches more depth.
+Implementation: killers scored just below captures; history[color][from][to] updated on quiet beta cutoffs with bonus min(16d² + 32d, 1200) and a malus for quiets tried before the cutoff; gravity h += b − h·|b|/16384. Tested on top of EXP-001.
+Bench: 3521991 → 2017210.
+Test plan: same as EXP-001, seed 102, base = EXP-001 champion.
+Result: **H1 accepted** after 284 games (LLR 2.99). Elo +125.0 ± 35.1 (nElo +157.6 ± 40.4); W/L/D 154/56/74; pentanomial [4, 14, 45, 38, 41]; 0 time forfeits.
+Analysis: much larger than typical reported gains for these heuristics in mature engines, which is expected because the baseline ordered quiets in generation order. It also prepares the ground for LMR (EXP-003), which depends on good quiet ordering.

@@ -59,3 +59,9 @@ commit: 2b492de   machine: cloud-xeon-4vcpu   net: none (bootstrap HCE)   method
 change vs baseline (M3-baseline): adaptive null-move pruning
 bench: nodes=3521991
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 101, bounds [0, 10] nElo → **H1 accepted**; games=266; Elo=+134.3 ± 36.2; nElo=+171.7 ± 41.8; pentanomial=[3, 11, 45, 33, 41]; LLR=2.97 (−2.94, 2.94); time forfeits 0
+
+### EXP-002 (killers + history): 2026-11-13. New champion.
+commit: (this commit)   machine: cloud-xeon-4vcpu   net: none   methodology: v1
+change vs baseline (EXP-001): killer moves + butterfly history for quiet ordering
+bench: nodes=2017210
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 102, [0, 10] → **H1 accepted**; games=284; Elo=+125.0 ± 35.1; nElo=+157.6 ± 40.4; pentanomial=[4, 14, 45, 38, 41]; LLR=2.99; time forfeits 0
