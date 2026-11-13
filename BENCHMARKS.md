@@ -40,7 +40,16 @@ notes: ...
 ```
 
 ## History
-_No engine exists yet. The first entry will be the M3 baseline._
+_Entries in chronological order._
 
 ### 2026-11-13: audit of the previous engine (commit 3e6ee83), cloud container (4 vCPU Xeon @2.1 GHz)
 Smoke test only; not a benchmark. Tests failed to link; `go perft` unsupported (returned `bestmove 0000`); `go depth 12` on the start position gave score cp 0 at every depth (no network loaded), with about 3.2 Mnps reported. The engine was retired; see ARCHITECTURE.md §1.
+
+### M3-baseline: 2026-11-13
+commit: ca423ff (engine code identical through f2c7723)   machine: cloud-xeon-4vcpu (Intel Xeon @2.10GHz, 4 vCPU, AVX-512; see tools/hwinfo.sh)   net: none (bootstrap HCE)   methodology: v1
+change vs baseline: first engine (PVS + TT + qsearch + MVV-LVA, untuned material/PST eval)
+bench (depth 6, 20 positions, 16 MB): nodes=8689072 (identical under GCC 13 -march=native and Clang 18 x86-64-v2); nps about 2.5M
+correctness: test_core (21-position perft + fuzz) and --deep (1.52B perft nodes) pass; ASan/UBSan pass; tests/uci_test.py passes
+validation run 1 (self-play, 1+0.01, conc 4, UHO_Lichess_4852_v1, seed 1): 1000 games, 0 crashes, 0 illegal moves, **10 time forfeits (1–13 ms overrun)**. The forfeits cluster where compilation was running concurrently on the same 4 cores (oversubscription).
+validation run 2 (same, seed 2, idle machine): 1000 games, **0 time forfeits, 0 crashes, 0 illegal moves**. Self-play score 49.55% (Elo -3.1 ± 15.9, a sanity check for symmetric play).
+methodology note: matches must not share cores with other work. From now on SPRTs on this 4-vCPU machine use concurrency 3, leaving one core for development.
