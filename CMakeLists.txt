@@ -48,6 +48,11 @@ add_library(apex_core STATIC
   src/core/bitboard.cpp
   src/core/position.cpp
   src/core/movegen.cpp
+  src/eval/eval.cpp
+  src/search/tt.cpp
+  src/search/search.cpp
+  src/uci/uci.cpp
+  src/util/cpuinfo.cpp
 )
 target_include_directories(apex_core PUBLIC src)
 target_link_libraries(apex_core PUBLIC Threads::Threads)

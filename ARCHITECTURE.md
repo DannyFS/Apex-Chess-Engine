@@ -84,7 +84,7 @@ src/
   uci/      protocol, options, bench command
   tb/       Syzygy (vendored Fathom, MIT)
   exp/      experimental modules behind compile-time or UCI flags; never on by default in the champion
-tests/      unit (doctest), perft suites, UCI conformance, search regression
+tests/      unit tests (minimal in-house harness), perft suites, UCI conformance, search regression
 tools/      datagen (in-engine), trainer configs (bullet), match/SPRT scripts, hwinfo, bench history
 nets/       versioned network metadata (weights via release assets; hashes in-repo)
 ```
@@ -101,8 +101,23 @@ Engineering rules:
 - **Then:** iterative self-play datagen (about 5k nodes per move, random opening plies, adjudication) → bullet training on the 5060 Ti → SPRT against the champion → repeat.
 - **No Stockfish or Leela-labelled data in the champion line.** This keeps the engine original, avoids licensing ambiguity, and avoids silently inheriting another engine's biases. A *teacher-labelled* net may be run as a clearly labelled experiment, to measure how much we leave on the table, but it will never be released as the champion.
 
-## 7. Open decisions (for the project owner)
+## 7. Owner decisions (resolved 2026-11-13)
 
-1. **Licence.** GPL-3.0 (compatible with studying and adapting code from GPL engines such as Stockfish, Ethereal and Berserk) or a permissive licence (requires clean-room implementation only). Recommendation: **GPL-3.0**.
-2. **Engine name.** Keep "Apex"?
-3. **Testing machine.** How many cores of the development PC may run test games overnight?
+1. **Licence: GPL-3.0-or-later.** Ideas and code from GPL engines may be adapted with attribution. Any adapted code must cite its source in a comment.
+2. **Name: Apex.**
+3. **Testing budget: 4 cores** on the development PC, plus this cloud container (4 vCPU) for development runs.
+
+### 7.1 Consequences of a 4-core testing budget
+At STC 8+0.08, a game lasts about 25 s of wall time per game slot, so 4 slots give roughly 500–550 games per hour.
+
+| Expected patch size | SPRT bounds | Typical games to resolve | Wall time on 4 cores |
+|---|---|---|---|
+| Large (+30 Elo or more: early search features, first NNUE) | [0, 10] | 1–3k | 2–6 h |
+| Medium (+5 to +15) | [0, 5] | 5–15k | 10–30 h |
+| Small (+1 to +3, late-stage tuning) | [0, 2] | 30–80k+ | days to weeks: **impractical** |
+
+**Policy:**
+- During the early phases (M5–M9), most changes are large, so [0, 10] bounds are appropriate and affordable.
+- Changes that bring no measurable gain at that resolution are rejected or batched, never merged on faith.
+- Once gains shrink below about 5 Elo, more testing hardware becomes the main lever for strength. The options then are cloud workers, an OpenBench instance, or community workers.
+- Runs on the cloud container are recorded as a separate machine and never mixed into the same SPRT as games played on the development PC.

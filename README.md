@@ -1,8 +1,53 @@
 # Apex: Next-Generation Chess Engine (research project)
 
-A research-driven UCI chess engine project. The planned design is a CPU alpha-beta (PVS) search with a self-trained NNUE evaluation, with the GPU used for training. Every change is gated by correctness tests and SPRT match evidence.
+A research-driven UCI chess engine. The planned design is a CPU alpha-beta (PVS) search with a self-trained NNUE evaluation, with the GPU used for training. Every change is gated by correctness tests and SPRT match evidence.
 
-**Status:** Stage 1–4 (audit, research, architecture, roadmap). No engine code yet.
+**Status:** M2 (board core) complete; M3 (baseline UCI engine) in validation. See [ROADMAP.md](ROADMAP.md).
+
+License: [GPL-3.0-or-later](LICENSE).
+
+## Build
+
+Requirements: CMake ≥ 3.20 and a C++20 compiler (GCC ≥ 11, Clang ≥ 14 or MSVC 2022).
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release        # default target: x86-64-v3 (AVX2/BMI2)
+cmake --build build -j
+```
+
+`-DAPEX_ARCH=native|v4|v3|v2` selects the instruction set (`v4` = AVX-512). On Windows (MSVC):
+
+```powershell
+cmake -S . -B build
+cmake --build build --config Release
+```
+
+## Test
+
+```bash
+./build/test_core            # perft (21 positions), fuzzing, SEE, draws: about 3 s
+./build/test_core --deep     # adds deep perft (1.5 billion nodes): about 20 s
+python3 tests/uci_test.py build/apex   # UCI conformance; needs `pip install chess`
+./build/apex bench           # deterministic node-count signature + NPS
+```
+
+## Use
+
+Apex speaks UCI and works in any UCI GUI (Cute Chess, Arena, BanksiaGUI, En Croissant) or with fastchess / cutechess-cli. Extra console commands: `d` (board), `eval`, `bench [depth]`, `cpuinfo`, `go perft <n>`.
+
+## Repository layout
+
+```
+src/core     bitboards, magics, position, move generation, SEE
+src/eval     evaluation (bootstrap HCE; NNUE from M8)
+src/search   search, transposition table
+src/uci      UCI protocol, bench
+src/util     CPU feature report
+tests        core tests (C++), UCI conformance (Python)
+tools        match/SPRT runner (fastchess), hardware reports
+```
+
+## Documents
 
 | Document | Purpose |
 |---|---|
