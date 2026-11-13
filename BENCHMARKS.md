@@ -77,3 +77,10 @@ commit: (this commit)   machine: cloud-xeon-4vcpu   net: none   methodology: v1
 change vs baseline (EXP-003): RFP depth ≤ 8, margin 80·depth
 bench: nodes=405629
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 104, [0, 10] → **H1 accepted**; games=398; Elo=+74.5 ± 25.7; nElo=+102.3 ± 34.1; pentanomial=[6, 26, 79, 54, 34]; LLR=2.96; time forfeits 0
+
+### EXP-005 (aspiration windows): 2026-11-13. New champion.
+commit: (this commit)   machine: cloud-xeon-4vcpu   net: none   methodology: v1
+change vs baseline (EXP-004): aspiration windows from depth 4, ±20 cp, ×1.5 widening, full window once delta > 1000
+bench: nodes=367806
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 105, [0, 10] → **H1 accepted**; games=1264; Elo=+25.6 ± 14.7; nElo=+33.5 ± 19.2; pentanomial=[45, 123, 229, 164, 71]; LLR=2.95; W/L/D 464/371/429
+time forfeits: **1** (game 4, the baseline exp004, 36 ms overrun). It happened near the start of the run; a one-core `nice -j1` build of a later experiment ran during this match, within the one-core development allowance. One game in 1264 does not change the decision. Overruns are being watched: if they recur, the move-overhead default (10 ms) gets its own experiment.

@@ -83,3 +83,12 @@ Implementation: depth ≤ 8, not in check, non-PV, |beta| not a mate score, stat
 Bench: 571441 → 405629.
 Result: **H1 accepted** after 398 games (LLR 2.96). Elo +74.5 ± 25.7 (nElo +102.3 ± 34.1); W/L/D 173/89/136; pentanomial [6, 26, 79, 54, 34]; 0 time forfeits.
 Analysis: a solid gain, smaller than NMP/LMR as expected. The margin (80/ply) is untuned and depends on the eval scale, so it must be re-checked when NNUE replaces the HCE (see RESEARCH §1.16).
+
+---
+
+## EXP-005: Aspiration windows   [status: accepted]
+Hypothesis: starting each iteration from depth 4 with a narrow window around the previous score makes iterations cheaper, because most nodes get tighter bounds.
+Implementation: window ±20 cp; on fail-low, beta = (alpha + beta)/2 and alpha = score − delta; on fail-high, beta = score + delta; delta grows ×1.5; full window once delta > 1000.
+Bench: 405629 → 367806.
+Result: **H1 accepted** after 1264 games (LLR 2.95). Elo +25.6 ± 14.7 (nElo +33.5 ± 19.2); W/L/D 464/371/429; pentanomial [45, 123, 229, 164, 71]; 1 time forfeit by the baseline (see BENCHMARKS.md).
+Analysis: the first "medium" gain. It needed about 4× as many games as EXP-001 to 004, as the 4-core budget table predicted. The window size and growth factor are untuned (SPSA candidates in M10).
