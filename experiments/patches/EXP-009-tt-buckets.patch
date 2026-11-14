@@ -1,0 +1,160 @@
+From 5351ba5f092fb278a070e6e8c6ffca72dd3a1deb Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 14 Nov 2026 10:02:42 +0000
+Subject: [PATCH] EXP-009: 4-entry TT buckets with depth - 8*age replacement
+
+One 64-byte cache line per bucket. Same-key entries keep the old update rule;
+new keys evict an empty slot first, else the lowest depth - 8*age entry.
+bench: 283803 (unchanged: the 16 MB bench table never fills at depth 6;
+1 MB depth-14 startpos search differs as expected)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01G5iCbWbUZgUFhzRNanL4Ca
+---
+ src/search/tt.cpp | 69 +++++++++++++++++++++++++++++------------------
+ src/search/tt.h   | 15 +++++++----
+ 2 files changed, 53 insertions(+), 31 deletions(-)
+
+diff --git a/src/search/tt.cpp b/src/search/tt.cpp
+index 0a41e4a..3c8d328 100644
+--- a/src/search/tt.cpp
++++ b/src/search/tt.cpp
+@@ -8,45 +8,61 @@
+ namespace apex {
+ 
+ void TranspositionTable::resize(std::size_t mb) {
+-    std::size_t n = std::max<std::size_t>(1, mb) * 1024 * 1024 / sizeof(TTEntry);
+-    entries.assign(n, TTEntry{});
++    std::size_t n = std::max<std::size_t>(1, mb) * 1024 * 1024 / sizeof(TTBucket);
++    buckets.assign(n, TTBucket{});
+     generation = 0;
+ }
+ 
+ void TranspositionTable::clear() {
+-    std::fill(entries.begin(), entries.end(), TTEntry{});
++    std::fill(buckets.begin(), buckets.end(), TTBucket{});
+     generation = 0;
+ }
+ 
+ bool TranspositionTable::probe(Key key, TTData& out) const {
+-    const TTEntry& e = entries[index(key)];
+-    if (e.key != key || e.bound() == BOUND_NONE) return false;
+-    out.move = Move(e.move);
+-    out.score = e.score;
+-    out.eval = e.eval;
+-    out.depth = e.depth;
+-    out.bound = e.bound();
+-    return true;
++    const TTBucket& b = buckets[index(key)];
++    for (const TTEntry& e : b.entry) {
++        if (e.key != key || e.bound() == BOUND_NONE) continue;
++        out.move = Move(e.move);
++        out.score = e.score;
++        out.eval = e.eval;
++        out.depth = e.depth;
++        out.bound = e.bound();
++        return true;
++    }
++    return false;
+ }
+ 
+ void TranspositionTable::store(Key key, Move move, Value score, Value eval, int depth, Bound bound) {
+-    TTEntry& e = entries[index(key)];
+-    bool same = e.key == key;
+-    // Keep the old move if we have none for the same position.
+-    if (move || !same) e.move = move.raw();
+-    // Replace: different position, exact bound, stale generation, or comparable depth.
+-    if (!same || bound == BOUND_EXACT || (e.gen_bound & 0xFC) != generation || depth + 3 >= e.depth) {
+-        e.key = key;
+-        e.score = std::int16_t(score);
+-        e.eval = std::int16_t(eval);
+-        e.depth = std::uint8_t(std::clamp(depth, 0, 255));
+-        e.gen_bound = std::uint8_t(generation | bound);
++    TTBucket& b = buckets[index(key)];
++    TTEntry* e = nullptr;
++    for (TTEntry& c : b.entry)
++        if (c.key == key && c.bound() != BOUND_NONE) { e = &c; break; }
++
++    if (e) {
++        // Same position: keep the old move if we have none; overwrite unless the stored
++        // entry is a deeper, current-generation, non-exact result.
++        if (move) e->move = move.raw();
++        if (!(bound == BOUND_EXACT || (e->gen_bound & 0xFC) != generation || depth + 3 >= e->depth)) return;
++    } else {
++        // New position: replace the entry with the lowest depth - 8*age (empty slots first).
++        e = &b.entry[0];
++        int worst = 1 << 30;
++        for (TTEntry& c : b.entry) {
++            int v = c.bound() == BOUND_NONE ? -(1 << 20) : c.depth - 8 * age(c);
++            if (v < worst) { worst = v; e = &c; }
++        }
++        e->move = move.raw();
+     }
++    e->key = key;
++    e->score = std::int16_t(score);
++    e->eval = std::int16_t(eval);
++    e->depth = std::uint8_t(std::clamp(depth, 0, 255));
++    e->gen_bound = std::uint8_t(generation | bound);
+ }
+ 
+ void TranspositionTable::prefetch(Key key) const {
+ #if defined(__GNUC__) || defined(__clang__)
+-    __builtin_prefetch(&entries[index(key)]);
++    __builtin_prefetch(&buckets[index(key)]);
+ #else
+     (void)key;
+ #endif
+@@ -54,10 +70,11 @@ void TranspositionTable::prefetch(Key key) const {
+ 
+ int TranspositionTable::hashfull() const {
+     int used = 0;
+-    std::size_t n = std::min<std::size_t>(1000, entries.size());
++    std::size_t n = std::min<std::size_t>(250, buckets.size());
+     for (std::size_t i = 0; i < n; ++i)
+-        if (entries[i].bound() != BOUND_NONE && (entries[i].gen_bound & 0xFC) == generation) ++used;
+-    return int(used * 1000 / std::max<std::size_t>(n, 1));
++        for (const TTEntry& e : buckets[i].entry)
++            if (e.bound() != BOUND_NONE && (e.gen_bound & 0xFC) == generation) ++used;
++    return int(used * 1000 / std::max<std::size_t>(4 * n, 1));
+ }
+ 
+ }  // namespace apex
+diff --git a/src/search/tt.h b/src/search/tt.h
+index 23b85fe..dd19933 100644
+--- a/src/search/tt.h
++++ b/src/search/tt.h
+@@ -40,8 +40,12 @@ struct TTData {
+     Bound bound;
+ };
+ 
+-// Single-entry-per-slot table (M3 baseline). Bucketing, lockless SMP safety and
+-// aging-based replacement are separate, individually tested improvements.
++// EXP-009: 4-entry buckets (one 64-byte cache line) with depth/age replacement.
++struct alignas(64) TTBucket {
++    TTEntry entry[4];
++};
++static_assert(sizeof(TTBucket) == 64);
++
+ class TranspositionTable {
+ public:
+     void resize(std::size_t mb);
+@@ -56,12 +60,13 @@ public:
+ private:
+     std::size_t index(Key key) const {
+ #if defined(_MSC_VER) && !defined(__clang__)
+-        return std::size_t(__umulh(key, std::uint64_t(entries.size())));
++        return std::size_t(__umulh(key, std::uint64_t(buckets.size())));
+ #else
+-        return std::size_t((static_cast<u128>(key) * entries.size()) >> 64);
++        return std::size_t((static_cast<u128>(key) * buckets.size()) >> 64);
+ #endif
+     }
+-    std::vector<TTEntry> entries;
++    int age(const TTEntry& e) const { return ((generation - e.gen_bound) & 0xFC) >> 2; }
++    std::vector<TTBucket> buckets;
+     std::uint8_t generation = 0;
+ };
+ 
+-- 
+2.43.0
+

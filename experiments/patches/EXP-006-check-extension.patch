@@ -1,0 +1,28 @@
+From a9229adbe8a3cce1033e40e0f61d259fca4606c8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 13 Nov 2026 19:59:31 +0000
+Subject: [PATCH] EXP-006: check extension
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01G5iCbWbUZgUFhzRNanL4Ca
+---
+ src/search/search.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/search/search.cpp b/src/search/search.cpp
+index 7c2d9a8..4ba7f21 100644
+--- a/src/search/search.cpp
++++ b/src/search/search.cpp
+@@ -299,7 +299,8 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
+         const bool quiet = !m.is_tactical();
+         const bool is_killer = m == killers[ply][0] || m == killers[ply][1];
+         const bool gives_check = pos.gives_check(m);
+-        const int new_depth = depth - 1;
++        // EXP-006: check extension.
++        const int new_depth = depth - 1 + int(gives_check);
+ 
+         pos.make_move(m);
+         Value score;
+-- 
+2.43.0
+
