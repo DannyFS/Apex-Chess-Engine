@@ -309,6 +309,12 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
             if (depth <= 6 && static_eval + 100 + 100 * depth <= alpha) continue;
         }
 
+        // EXP-008: SEE pruning. Skip moves that lose material by static exchange at
+        // shallow depth (quiets that hang a piece, losing captures).
+        if (!root && !in_check && depth <= 8 && best > VALUE_MATED_IN_MAX_PLY &&
+            !pos.see_ge(m, quiet ? -50 * depth : -100 * depth))
+            continue;
+
         pos.make_move(m);
         Value score;
         if (legal == 1) {
@@ -398,6 +404,8 @@ Value Search::qsearch(Position& pos, Value alpha, Value beta, int ply, bool pv_n
         ++legal;
         // Underpromotions are almost never needed in quiescence.
         if (!in_check && m.is_promotion() && m.promo_type() != QUEEN) continue;
+        // EXP-008: skip captures that lose material by static exchange.
+        if (!in_check && !pos.see_ge(m, 0)) continue;
 
         pos.make_move(m);
         Value score = -qsearch(pos, -beta, -alpha, ply + 1, pv_node);
