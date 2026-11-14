@@ -92,3 +92,12 @@ Implementation: window ±20 cp; on fail-low, beta = (alpha + beta)/2 and alpha =
 Bench: 405629 → 367806.
 Result: **H1 accepted** after 1264 games (LLR 2.95). Elo +25.6 ± 14.7 (nElo +33.5 ± 19.2); W/L/D 464/371/429; pentanomial [45, 123, 229, 164, 71]; 1 time forfeit by the baseline (see BENCHMARKS.md).
 Analysis: the first "medium" gain. It needed about 4× as many games as EXP-001 to 004, as the 4-core budget table predicted. The window size and growth factor are untuned (SPSA candidates in M10).
+
+---
+
+## EXP-006: Check extension   [status: inconclusive, not merged]
+Hypothesis: extending checking moves by one ply reduces horizon errors in forcing lines.
+Implementation: new_depth = depth − 1 + gives_check, for every checking move (no SEE condition, no extension limit).
+Bench: 367806 → 471163 (+28% nodes: extensions grow the tree).
+Result: **inconclusive** at the 3000-game cap (methodology v1.1). Elo +7.5 ± 9.6 (nElo +9.8 ± 12.4), LLR ≈ 1.19. Run 1 was aborted by a container restart and discarded; run 2 was resumed once after a restart. See BENCHMARKS.md.
+Analysis: probably a small positive effect, too small to confirm at [0, 10] on this hardware. An unconditional check extension is crude; modern engines extend only some checks (for example, SEE ≥ 0 checks) or get the effect through singular extensions (EXP-012). Retry candidates: SEE-gated check extension, or re-testing after EXP-012. EXP-007 and later experiments were rebased onto the champion without it.

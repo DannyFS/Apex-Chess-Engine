@@ -84,3 +84,15 @@ change vs baseline (EXP-004): aspiration windows from depth 4, ±20 cp, ×1.5 wi
 bench: nodes=367806
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 105, [0, 10] → **H1 accepted**; games=1264; Elo=+25.6 ± 14.7; nElo=+33.5 ± 19.2; pentanomial=[45, 123, 229, 164, 71]; LLR=2.95; W/L/D 464/371/429
 time forfeits: **1** (game 4, the baseline exp004, 36 ms overrun). It happened near the start of the run; a one-core `nice -j1` build of a later experiment ran during this match, within the one-core development allowance. One game in 1264 does not change the decision. Overruns are being watched: if they recur, the move-overhead default (10 ms) gets its own experiment.
+
+### Methodology v1.1: 2026-11-14 (amends v1)
+1. **Game cap for early-phase SPRTs.** A [0, 10] SPRT that has not resolved by **3000 games** is stopped and recorded as **inconclusive**. The change is not merged; it may be retried later (for example in a batch, at LTC, or with more hardware). Reason: an effect of about +5 Elo sits between the bounds and can need 10k+ games (more than 24 h on 3 game slots). A cap can only produce "not merged", so it cannot raise the false-positive rate. Introduced during EXP-006 (at about 2600 games, after seeing its interim results); recorded here for transparency. It applies to every SPRT from EXP-007 on.
+2. **Interrupted runs.** The cloud container is reclaimed when the session goes idle, which kills running matches. A run interrupted *before* any decision is either (a) resumed from fastchess's saved state (`-config file=config.json`, same seed, same opening sequence), or (b) discarded and restarted from zero with a new seed. It is never restarted *because of* its interim score. Both are logged.
+
+### EXP-006 (check extension): 2026-11-14. Inconclusive, not merged.
+commit: a9229ad (branch exp/006-check-ext, not merged)   machine: cloud-xeon-4vcpu   net: none   methodology: v1 → v1.1 cap applied
+change vs baseline (EXP-005): extend checking moves by one ply
+bench: nodes=471163
+run 1 (seed 106, started 2026-11-13 23:04): **aborted** by a container restart at about 400 games (Elo +8.7 ± 26.5, LLR 0.20). Discarded and restarted from zero with a new seed, without continuing.
+run 2 (seed 1062): STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, [0, 10]. Interrupted by another container restart at 860 games; **resumed** from the saved fastchess state (same seed). Stopped at the 3000-game cap → **inconclusive**. games=3000; W/L/D 982/917/1101; Elo=+7.5 ± 9.6; nElo=+9.8 ± 12.4; pentanomial=[136, 313, 537, 378, 136]; LLR≈1.19 (from the PGN; fastchess reported 1.23 at 2845 games)
+time forfeits: 1 (pair 721, the baseline exp005).
