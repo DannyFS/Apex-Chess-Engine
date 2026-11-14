@@ -119,3 +119,12 @@ Implementation: main search: non-root, not in check, depth ≤ 8, after one move
 Bench: 283803 → 92972 (−67%; most of the reduction is from qsearch).
 Result: **H1 accepted** after 320 games (LLR 2.95). Elo +96.9 ± 27.6 (nElo +141.0 ± 38.1); W/L/D 148/61/111; pentanomial [4, 15, 56, 60, 25]; 0 time forfeits.
 Analysis: large, as qsearch explosion is a known weakness of MVV-LVA-only qsearch. Main-search and qsearch parts are not separated in this test (ablation is a low-priority diagnostic). The thresholds are untuned.
+
+---
+
+## EXP-009: TT buckets and replacement policy   [status: rejected]
+Hypothesis: 4-entry cache-line buckets with depth/age replacement keep deep entries longer than a single always-replace slot, so the search reuses more work.
+Implementation: 64-byte buckets of 4 × 16-byte entries; same-key updates keep the old rule; new keys evict an empty slot first, else the lowest depth − 8·age.
+Bench: unchanged (92972); a 1 MB depth-14 start-position search confirmed the different behaviour.
+Result: **H0 accepted** after 2806 games (LLR −2.98). Elo −5.8 ± 9.6. See BENCHMARKS.md.
+Analysis: no gain at STC with 16 MB. Likely reasons: (1) at 8+0.08 the engine searches about 1M nodes per move, so a 1M-entry table is under little pressure and replacement policy barely matters; (2) the 4-way probe costs a little speed; (3) "depth − 8·age" evicts shallow but recent entries that are useful for move ordering near the leaves. Retry candidates: re-test at LTC (64 MB, more pressure per entry) or under a smaller hash; try 3-entry buckets with 10-byte entries. The branch is kept.

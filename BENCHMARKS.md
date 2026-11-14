@@ -108,3 +108,9 @@ commit: (this commit)   machine: cloud-xeon-4vcpu   net: none   methodology: v1.
 change vs baseline (EXP-007): main search (non-root, not in check, depth ≤ 8, after one move searched) skips quiets with SEE < −50·depth and captures with SEE < −100·depth; qsearch (not in check) skips captures with SEE < 0
 bench: nodes=92972
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 108, [0, 10], cap 3000 → **H1 accepted**; games=320; Elo=+96.9 ± 27.6; nElo=+141.0 ± 38.1; pentanomial=[4, 15, 56, 60, 25]; LLR=2.95; W/L/D 148/61/111; time forfeits 0
+
+### EXP-009 (TT buckets): 2026-11-14. Rejected.
+commit: 5351ba5 (branch exp/009-tt-buckets, not merged)   machine: cloud-xeon-4vcpu   net: none   methodology: v1.1
+change vs baseline (EXP-008): 4-entry, 64-byte TT buckets; new keys evict an empty slot, else the lowest depth − 8·age entry
+bench: nodes=92972 (unchanged; the 16 MB bench table never fills at depth 6)
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 109, [0, 10], cap 3000 → **H0 accepted**; games=2806; Elo=−5.8 ± 9.6; nElo=−7.8 ± 12.9; pentanomial=[117, 343, 520, 316, 107]; LLR=−2.98; W/L/D 825/872/1109; time forfeits 0
