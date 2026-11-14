@@ -248,11 +248,13 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
         if (alpha >= beta) return alpha;
     }
 
+    const Move excl = excluded[ply];
     TTData tte{};
-    bool tt_hit = tt.probe(pos.key(), tte);
+    bool tt_hit = !excl && tt.probe(pos.key(), tte);
     Move tt_move = tt_hit ? tte.move : Move::none();
+    const Value tt_value = tt_hit ? value_from_tt(tte.score, ply) : VALUE_NONE;
     if (tt_hit) {
-        Value tt_score = value_from_tt(tte.score, ply);
+        Value tt_score = tt_value;
         if (!pv_node && tte.depth >= depth &&
             (tte.bound == BOUND_EXACT || (tte.bound == BOUND_LOWER && tt_score >= beta) ||
              (tte.bound == BOUND_UPPER && tt_score <= alpha)))
@@ -263,13 +265,13 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
     Value static_eval = in_check ? VALUE_NONE : evaluate(pos);
 
     // EXP-004: reverse futility pruning (static null move) at shallow depth.
-    if (!pv_node && !in_check && !root && depth <= 8 && std::abs(beta) < VALUE_MATE_IN_MAX_PLY &&
+    if (!pv_node && !in_check && !root && !excl && depth <= 8 && std::abs(beta) < VALUE_MATE_IN_MAX_PLY &&
         static_eval - 80 * depth >= beta)
         return static_eval;
 
     // EXP-001: null-move pruning. Skipped in PV nodes, in check, right after another
     // null move, and when the side to move has only pawns (zugzwang risk).
-    if (!pv_node && !in_check && !root && depth >= 3 && static_eval >= beta && pos.plies_from_null() > 0 &&
+    if (!pv_node && !in_check && !root && !excl && depth >= 3 && static_eval >= beta && pos.plies_from_null() > 0 &&
         pos.non_pawn_material_count(pos.side_to_move()) > 0) {
         int R = 3 + depth / 3 + std::min((static_eval - beta) / 200, 3);
         pos.make_null();
@@ -293,13 +295,27 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
 
     for (int i = 0; i < list.size(); ++i) {
         Move m = pick(list, i);
-        if (!pos.legal(m)) continue;
+        if (m == excl || !pos.legal(m)) continue;
         ++legal;
 
         const bool quiet = !m.is_tactical();
         const bool is_killer = m == killers[ply][0] || m == killers[ply][1];
         const bool gives_check = pos.gives_check(m);
-        const int new_depth = depth - 1;
+        // EXP-012: singular extension. If every alternative fails low against a margin
+        // below the TT score, the TT move is forced: extend it. If even the reduced
+        // alternatives beat beta, more than one move refutes: multi-cut.
+        int extension = 0;
+        if (!root && m == tt_move && !excl && depth >= 8 && tte.depth >= depth - 3 &&
+            (tte.bound & BOUND_LOWER) && std::abs(tt_value) < VALUE_MATE_IN_MAX_PLY) {
+            const Value singular_beta = tt_value - 2 * depth;
+            excluded[ply] = m;
+            Value v = negamax(pos, singular_beta - 1, singular_beta, (depth - 1) / 2, ply, false);
+            excluded[ply] = Move::none();
+            if (stop_flag.load(std::memory_order_relaxed)) return 0;
+            if (v < singular_beta) extension = 1;
+            else if (singular_beta >= beta) return singular_beta;
+        }
+        const int new_depth = depth - 1 + extension;
 
         // EXP-007: late move pruning and futility pruning of quiet moves at shallow depth.
         // Only once a move has been searched (best is not a mated score), so a node never
@@ -359,10 +375,10 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
         }
     }
 
-    if (legal == 0) return in_check ? mated_in(ply) : VALUE_DRAW;
+    if (legal == 0) return excl ? alpha : (in_check ? mated_in(ply) : VALUE_DRAW);
 
     Bound bound = best >= beta ? BOUND_LOWER : (alpha > old_alpha ? BOUND_EXACT : BOUND_UPPER);
-    tt.store(pos.key(), best_move, value_to_tt(best, ply), static_eval == VALUE_NONE ? 0 : static_eval, depth, bound);
+    if (!excl) tt.store(pos.key(), best_move, value_to_tt(best, ply), static_eval == VALUE_NONE ? 0 : static_eval, depth, bound);
     return best;
 }
 

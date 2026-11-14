@@ -74,6 +74,9 @@ private:
     PV pv_table[MAX_PLY + 1];
     Move root_best = Move::none();
 
+    // EXP-012: move excluded from the search at each ply (singular-extension verification).
+    Move excluded[MAX_PLY + 2] = {};
+
     // Quiet-move ordering heuristics (EXP-002)
     Move killers[MAX_PLY + 2][2] = {};
     int history[COLOR_NB][SQUARE_NB][SQUARE_NB] = {};
