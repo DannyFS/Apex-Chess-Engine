@@ -14,6 +14,7 @@
 #include "core/movegen.h"
 #include "core/position.h"
 #include "eval/eval.h"
+#include "eval/eval_layout.h"
 #include "search/search.h"
 #include "search/tt.h"
 #include "util/cpuinfo.h"
@@ -214,6 +215,41 @@ void run_bench(int depth, int hash_mb) {
     std::fflush(stdout);
 }
 
+namespace {
+void texel_features(const std::string& in_path, const std::string& out_path) {
+    std::FILE* in = std::fopen(in_path.c_str(), "r");
+    std::FILE* out = std::fopen(out_path.c_str(), "w");
+    if (!in || !out) {
+        std::printf("info string cannot open texel files\n");
+        if (in) std::fclose(in);
+        if (out) std::fclose(out);
+        return;
+    }
+    std::vector<int> coeffs(evl::NUM_WEIGHTS);
+    char line[512];
+    long n = 0, bad = 0;
+    Position pos;
+    while (std::fgets(line, sizeof(line), in)) {
+        std::string l(line);
+        auto bar = l.find('|');
+        if (bar == std::string::npos) { ++bad; continue; }
+        std::string fen = l.substr(0, bar);
+        double result = std::stod(l.substr(bar + 1));
+        if (!pos.set(fen)) { ++bad; continue; }
+        int phase = eval_features(pos, coeffs.data());
+        std::fprintf(out, "%.1f %d %d %d", result, phase, pos.side_to_move() == WHITE ? 1 : 0, pos.rule50());
+        for (int i = 0; i < evl::NUM_WEIGHTS; ++i)
+            if (coeffs[i]) std::fprintf(out, " %d:%d", i, coeffs[i]);
+        std::fputc('\n', out);
+        ++n;
+    }
+    std::fclose(in);
+    std::fclose(out);
+    std::printf("info string texel-features: %ld positions, %ld skipped\n", n, bad);
+    std::fflush(stdout);
+}
+}  // namespace
+
 int uci_main(int argc, char** argv) {
     Engine e;
 
@@ -253,6 +289,12 @@ int uci_main(int argc, char** argv) {
             int depth = DefaultBenchDepth;
             if (!(is >> depth)) depth = DefaultBenchDepth;
             run_bench(depth, 16);
+        } else if (token == "texel-features") {
+            // texel-features <in> <out>: in = "<fen> | <result>" lines (tools/texel/extract.py).
+            // out = "<result> <phase> <stm> <rule50> <idx>:<coef> ..." (nonzero coefficients).
+            std::string in_path, out_path;
+            is >> in_path >> out_path;
+            texel_features(in_path, out_path);
         } else if (token == "cpuinfo") {
             std::printf("%s", cpu_report().c_str());
             std::fflush(stdout);

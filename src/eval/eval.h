@@ -14,4 +14,8 @@ Value evaluate(const Position& pos);
 // Debug breakdown printed by the UCI "eval" command.
 std::string eval_trace(const Position& pos);
 
+// Texel tuning support: fills coeffs[evl::NUM_WEIGHTS] with white-minus-black feature
+// counts and returns the game phase (0 = endgame .. 24 = opening).
+int eval_features(const Position& pos, int* coeffs);
+
 }  // namespace apex
