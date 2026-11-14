@@ -101,3 +101,12 @@ Implementation: new_depth = depth − 1 + gives_check, for every checking move (
 Bench: 367806 → 471163 (+28% nodes: extensions grow the tree).
 Result: **inconclusive** at the 3000-game cap (methodology v1.1). Elo +7.5 ± 9.6 (nElo +9.8 ± 12.4), LLR ≈ 1.19. Run 1 was aborted by a container restart and discarded; run 2 was resumed once after a restart. See BENCHMARKS.md.
 Analysis: probably a small positive effect, too small to confirm at [0, 10] on this hardware. An unconditional check extension is crude; modern engines extend only some checks (for example, SEE ≥ 0 checks) or get the effect through singular extensions (EXP-012). Retry candidates: SEE-gated check extension, or re-testing after EXP-012. EXP-007 and later experiments were rebased onto the champion without it.
+
+---
+
+## EXP-007: Late move pruning + futility pruning   [status: accepted]
+Hypothesis: at shallow depth in non-PV nodes, late quiet moves, and quiet moves that cannot lift a low static eval up to alpha, almost never matter. Skipping them saves effort.
+Implementation: LMP: skip quiets once legal > 3 + depth² (depth ≤ 6). Futility: skip quiets when static_eval + 100 + 100·depth ≤ alpha (depth ≤ 6). Both only in non-PV nodes, not in check, for non-checking quiets, after at least one move has been searched. Tested on the EXP-005 champion (rebased off the inconclusive EXP-006).
+Bench: 367806 → 283803.
+Result: **H1 accepted** after 286 games (LLR 2.99). Elo +118.6 ± 32.2 (nElo +160.8 ± 40.3); W/L/D 138/44/104; pentanomial [3, 15, 42, 51, 32]; 0 time forfeits.
+Analysis: much larger than expected ("medium"). The untuned HCE probably makes many quiet moves look similar, so cutting them at low depth frees a lot of time for depth. Both pruning rules are tied together in this test; an ablation (LMP only / futility only) is queued as a low-priority diagnostic. The margins are eval-scale dependent and must be re-checked after NNUE.

@@ -96,3 +96,9 @@ bench: nodes=471163
 run 1 (seed 106, started 2026-11-13 23:04): **aborted** by a container restart at about 400 games (Elo +8.7 ± 26.5, LLR 0.20). Discarded and restarted from zero with a new seed, without continuing.
 run 2 (seed 1062): STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, [0, 10]. Interrupted by another container restart at 860 games; **resumed** from the saved fastchess state (same seed). Stopped at the 3000-game cap → **inconclusive**. games=3000; W/L/D 982/917/1101; Elo=+7.5 ± 9.6; nElo=+9.8 ± 12.4; pentanomial=[136, 313, 537, 378, 136]; LLR≈1.19 (from the PGN; fastchess reported 1.23 at 2845 games)
 time forfeits: 1 (pair 721, the baseline exp005).
+
+### EXP-007 (late move pruning + futility pruning): 2026-11-14. New champion.
+commit: (this commit)   machine: cloud-xeon-4vcpu   net: none   methodology: v1.1
+change vs baseline (EXP-005): LMP (skip quiets once legal > 3 + depth², depth ≤ 6) and futility pruning (skip quiets when static_eval + 100 + 100·depth ≤ alpha, depth ≤ 6), non-PV, not in check, non-checking quiets, after one move searched
+bench: nodes=283803
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 107, [0, 10], cap 3000 → **H1 accepted**; games=286; Elo=+118.6 ± 32.2; nElo=+160.8 ± 40.3; pentanomial=[3, 15, 42, 51, 32]; LLR=2.99; W/L/D 138/44/104; time forfeits 0
