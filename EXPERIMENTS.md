@@ -110,3 +110,12 @@ Implementation: LMP: skip quiets once legal > 3 + depth² (depth ≤ 6). Futilit
 Bench: 367806 → 283803.
 Result: **H1 accepted** after 286 games (LLR 2.99). Elo +118.6 ± 32.2 (nElo +160.8 ± 40.3); W/L/D 138/44/104; pentanomial [3, 15, 42, 51, 32]; 0 time forfeits.
 Analysis: much larger than expected ("medium"). The untuned HCE probably makes many quiet moves look similar, so cutting them at low depth frees a lot of time for depth. Both pruning rules are tied together in this test; an ablation (LMP only / futility only) is queued as a low-priority diagnostic. The margins are eval-scale dependent and must be re-checked after NNUE.
+
+---
+
+## EXP-008: SEE pruning (main search + qsearch)   [status: accepted]
+Hypothesis: moves that lose material by static exchange rarely help at shallow depth, and losing captures almost never help in qsearch. Skipping them cuts a large part of the tree.
+Implementation: main search: non-root, not in check, depth ≤ 8, after one move searched; skip quiets with SEE < −50·depth and captures with SEE < −100·depth. Qsearch: not in check, skip captures with SEE < 0. Tested on the EXP-007 champion.
+Bench: 283803 → 92972 (−67%; most of the reduction is from qsearch).
+Result: **H1 accepted** after 320 games (LLR 2.95). Elo +96.9 ± 27.6 (nElo +141.0 ± 38.1); W/L/D 148/61/111; pentanomial [4, 15, 56, 60, 25]; 0 time forfeits.
+Analysis: large, as qsearch explosion is a known weakness of MVV-LVA-only qsearch. Main-search and qsearch parts are not separated in this test (ablation is a low-priority diagnostic). The thresholds are untuned.

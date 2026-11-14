@@ -102,3 +102,9 @@ commit: (this commit)   machine: cloud-xeon-4vcpu   net: none   methodology: v1.
 change vs baseline (EXP-005): LMP (skip quiets once legal > 3 + depth², depth ≤ 6) and futility pruning (skip quiets when static_eval + 100 + 100·depth ≤ alpha, depth ≤ 6), non-PV, not in check, non-checking quiets, after one move searched
 bench: nodes=283803
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 107, [0, 10], cap 3000 → **H1 accepted**; games=286; Elo=+118.6 ± 32.2; nElo=+160.8 ± 40.3; pentanomial=[3, 15, 42, 51, 32]; LLR=2.99; W/L/D 138/44/104; time forfeits 0
+
+### EXP-008 (SEE pruning): 2026-11-14. New champion.
+commit: (this commit)   machine: cloud-xeon-4vcpu   net: none   methodology: v1.1
+change vs baseline (EXP-007): main search (non-root, not in check, depth ≤ 8, after one move searched) skips quiets with SEE < −50·depth and captures with SEE < −100·depth; qsearch (not in check) skips captures with SEE < 0
+bench: nodes=92972
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 108, [0, 10], cap 3000 → **H1 accepted**; games=320; Elo=+96.9 ± 27.6; nElo=+141.0 ± 38.1; pentanomial=[4, 15, 56, 60, 25]; LLR=2.95; W/L/D 148/61/111; time forfeits 0
