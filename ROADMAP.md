@@ -47,3 +47,20 @@ Each milestone has **exit criteria**, and a milestone is done only when they are
 | 3300–3500 | Own NNUE, about 1–3B positions, sustained SPRT | Good, with months of steady testing |
 | 3500–3650 (top-15 open-source tier) | Many net generations, large-scale testing (thousands of CPU-hours a month) | Possible; testing compute is the limit |
 | Stockfish level (~3800+) | Hundreds of contributors and a distributed testing farm running about 10⁹ games over years | **Not realistic** with one machine. Requires a different order of resources. |
+
+## Status (2026-11-16)
+| Milestone | Status | Evidence |
+|---|---|---|
+| M0 Environment | partial: cloud machine recorded; **the Windows PC report (`tools/hwinfo.ps1`) is still pending** | BENCHMARKS.md |
+| M1 Research / architecture | done | RESEARCH.md, ARCHITECTURE.md |
+| M2 Board core | done (perft 27 positions incl. 1.5B-node deep suite, Zobrist fuzz, ASan/UBSan) | test_core |
+| M3 Minimal UCI engine | done (UCI tests; 1000 validation games without forfeits on an idle machine) | BENCHMARKS.md M3-baseline |
+| M4 Test infrastructure | done for one machine (fastchess SPRT runner, UHO book); no OpenBench | tools/match.py |
+| M5 Search stack | mostly done: 8 features accepted; check extension, TT buckets, continuation history, correction history inconclusive or rejected (patches kept); IIR and capture history still to test | EXPERIMENTS.md |
+| M6 Texel-tuned HCE | done (+312) | EXP-015 |
+| M7 Datagen | done (in-engine, single-threaded per process, text plus binary conversion) | src/tools/datagen.cpp |
+| M8 Network v1 | done with a **128-unit** net (not 256) trained on the CPU (numpy), because this environment has no GPU and PyTorch's download host is blocked. +130 vs the tuned HCE | EXP-017 |
+| M9 Net iteration | in progress: generation-1 data from the NNUE engine | EXPERIMENTS.md |
+| M10–M11 | not started | |
+
+No CCRL-equivalent rating has been measured yet (M11); all gains so far are self-play.
