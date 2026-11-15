@@ -41,6 +41,10 @@ def main():
     ap.add_argument("--out", default="results")
     ap.add_argument("--label", default="match")
     ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--new-option", action="append", default=[], metavar="NAME=VALUE",
+                    help="UCI option for the candidate only (repeatable), e.g. EvalFile=/path/net.nnue")
+    ap.add_argument("--base-option", action="append", default=[], metavar="NAME=VALUE",
+                    help="UCI option for the baseline only (repeatable)")
     args = ap.parse_args()
 
     tc, hash_mb = PRESETS.get(args.preset, ("8+0.08", 16))
@@ -59,7 +63,9 @@ def main():
     cmd = [
         args.fastchess,
         "-engine", f"cmd={os.path.abspath(args.new)}", f"name={args.new_name}",
+        *[f"option.{o}" for o in args.new_option],
         "-engine", f"cmd={os.path.abspath(args.base)}", f"name={args.base_name}",
+        *[f"option.{o}" for o in args.base_option],
         "-each", "proto=uci", f"tc={tc}", f"option.Hash={hash_mb}", "option.Threads=1",
         "-rounds", str(args.games // 2), "-repeat",
         "-concurrency", str(args.concurrency),
