@@ -180,3 +180,16 @@ Hypothesis: adding 316k positions from games played by the tuned engine and re-t
 Implementation: tools/texel as in EXP-015; 1,388,071 positions; start = EXP-015 weights; L2 5e-9 toward them; 2000 iterations.
 Result: held-out MSE improved only 0.5% (0.084250 → 0.083837, vs 6.4% for EXP-015), and the match shows **no measurable effect**: Elo +0.2 ± 8.8 over 3000 games (inconclusive at the cap).
 Analysis: the linear HCE with this feature set is close to saturated on this data: more positions of the same kind no longer move the weights in ways that matter. Lesson: held-out MSE gains below about 1% should not be sent to a 3000-game SPRT. Further eval gains need new information: new features (threats, king safety by attacker count, pawn storms, outposts, space), better data (deeper self-play search, positions labelled by search score instead of only game result), or NNUE (M7–M9).
+
+---
+
+## M7/M8 plan: generation-0 NNUE (decision 2026-11-15)
+Why now: since EXP-012, three of four changes ended inconclusive at about 0 to +10 Elo, and a further Texel round (EXP-016) gave nothing. The tuned HCE looks saturated; the roadmap's next large lever is NNUE (ARCHITECTURE §4).
+What was built (merged, off by default, bench unchanged):
+- `datagen` (M7): self-play with a 5000-node limit per move, random 8–9 ply openings, adjudication, quiet non-check positions labelled with search score + game result. About 330 positions/s per core; deterministic per seed.
+- NNUE inference (M8): apex-768x128x2-1, incremental accumulators, `EvalFile` option, `nnue-data` converter, numpy/scipy trainer (tools/nnue). PyTorch was not used because its download host is blocked in this environment; numpy is enough for this small network.
+Compute plan and expected value:
+- Data: about 10M positions from the EXP-012 champion (gen 0), about 2.5 h on all 4 cores (EXP-011 aborted at 48 games to free them).
+- Training: about 3 h on 1 core (20 epochs at about 20k positions/s), while datagen continues on the other cores.
+- Test: SPRT [0, 10] NNUE vs HCE champion.
+- Expected: uncertain. Small first-generation nets on about 10M self-play positions often beat a tuned HCE clearly, but NNUE is slower per node than our HCE and a 128-unit net is small; a loss is possible. The point of gen 0 is also to start the self-improvement loop (better net → better data → better net).

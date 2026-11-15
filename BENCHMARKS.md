@@ -146,3 +146,6 @@ commit: 13bcd8a (branch exp/016-texel-v3, not merged)   machine: cloud-xeon-4vcp
 change vs baseline (EXP-012): weights re-tuned from EXP-015's on 1.39M positions (15.2k games, incl. 3.2k with the EXP-015 eval); held-out MSE 0.084250 → 0.083837
 bench: nodes=113875
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 116, [0, 10], cap 3000 → **inconclusive**; games=3000; Elo=+0.2 ± 8.8; nElo=+0.3 ± 12.4; pentanomial=[98, 362, 577, 366, 97]; LLR=−1.16; W/L/D 885/883/1232; time forfeits 0
+
+### EXP-011 (internal iterative reduction), run 1: 2026-11-15. Aborted (re-prioritisation), no result.
+Stopped at 48 games, before any rating report, to free all 4 cores for NNUE generation-0 data (see EXPERIMENTS.md "M7/M8 plan"). Not stopped because of its score. It will be re-run from zero with a new seed; the partial PGN is kept under results/aborted.
