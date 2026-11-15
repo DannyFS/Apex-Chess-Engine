@@ -49,6 +49,7 @@ add_library(apex_core STATIC
   src/core/position.cpp
   src/core/movegen.cpp
   src/eval/eval.cpp
+  src/eval/nnue/nnue.cpp
   src/search/tt.cpp
   src/search/search.cpp
   src/uci/uci.cpp

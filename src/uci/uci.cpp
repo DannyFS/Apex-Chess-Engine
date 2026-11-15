@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -15,6 +16,7 @@
 #include "core/position.h"
 #include "eval/eval.h"
 #include "eval/eval_layout.h"
+#include "eval/nnue/nnue.h"
 #include "search/search.h"
 #include "search/tt.h"
 #include "tools/datagen.h"
@@ -79,6 +81,7 @@ void cmd_uci() {
     std::printf("option name Threads type spin default 1 min 1 max 1\n");
     std::printf("option name Move Overhead type spin default 10 min 0 max 5000\n");
     std::printf("option name Ponder type check default false\n");
+    std::printf("option name EvalFile type string default <empty>\n");
     std::printf("uciok\n");
     std::fflush(stdout);
 }
@@ -97,6 +100,20 @@ void cmd_setoption(Engine& e, std::istringstream& is) {
             e.tt.resize(std::size_t(e.hash_mb));
         } else if (lname == "move overhead") {
             e.search->config.move_overhead_ms = std::clamp(std::stoi(value), 0, 5000);
+        } else if (lname == "evalfile") {
+            // M8: an NNUE network file; "<empty>" (the default) selects the hand-crafted eval.
+            e.wait();
+            if (value.empty() || value == "<empty>") {
+                nnue::unload();
+                std::printf("info string eval: hand-crafted\n");
+            } else {
+                std::string err;
+                if (nnue::load(value, err))
+                    std::printf("info string eval: NNUE %s\n", nnue::loaded_name().c_str());
+                else
+                    std::printf("info string EvalFile not loaded (%s); eval unchanged (%s)\n", err.c_str(),
+                                nnue::loaded() ? nnue::loaded_name().c_str() : "hand-crafted");
+            }
         } else if (lname == "threads" || lname == "ponder") {
             // Accepted for GUI compatibility; Lazy SMP arrives in M10.
         } else {
@@ -251,6 +268,55 @@ void texel_features(const std::string& in_path, const std::string& out_path) {
 }
 }  // namespace
 
+namespace {
+// nnue-data <in> <out>: converts datagen text ("<fen> | <score white> | <result white>")
+// into fixed 70-byte records for tools/nnue/train.py:
+//   uint8 count, uint8 stm (0 white, 1 black), int16 score (white POV, cp),
+//   uint8 result (0 black win, 1 draw, 2 white win), uint8 reserved,
+//   uint16 feature[32] (white-perspective feature index, 0xFFFF padding).
+void nnue_data(const std::string& in_path, const std::string& out_path) {
+    std::FILE* in = std::fopen(in_path.c_str(), "r");
+    std::FILE* out = std::fopen(out_path.c_str(), "ab");
+    if (!in || !out) {
+        std::printf("info string cannot open nnue-data files\n");
+        if (in) std::fclose(in);
+        if (out) std::fclose(out);
+        return;
+    }
+    char line[512];
+    long n = 0, bad = 0;
+    Position pos;
+    while (std::fgets(line, sizeof(line), in)) {
+        std::string l(line);
+        const auto b1 = l.find('|'), b2 = l.find('|', b1 == std::string::npos ? 0 : b1 + 1);
+        if (b1 == std::string::npos || b2 == std::string::npos || !pos.set(l.substr(0, b1))) { ++bad; continue; }
+        const int score = std::clamp(std::stoi(l.substr(b1 + 1, b2 - b1 - 1)), -32000, 32000);
+        const double res = std::stod(l.substr(b2 + 1));
+        unsigned char rec[70] = {};
+        std::uint16_t feats[32];
+        std::fill(feats, feats + 32, std::uint16_t(0xFFFF));
+        int k = 0;
+        Bitboard occ = pos.pieces();
+        while (occ && k < 32) {
+            const Square s = pop_lsb(occ);
+            feats[k++] = std::uint16_t(nnue::feature(WHITE, pos.piece_on(s), s));
+        }
+        rec[0] = std::uint8_t(k);
+        rec[1] = pos.side_to_move() == WHITE ? 0 : 1;
+        const std::int16_t sc = std::int16_t(score);
+        std::memcpy(rec + 2, &sc, 2);
+        rec[4] = res > 0.75 ? 2 : (res < 0.25 ? 0 : 1);
+        std::memcpy(rec + 6, feats, sizeof(feats));
+        std::fwrite(rec, sizeof(rec), 1, out);
+        ++n;
+    }
+    std::fclose(in);
+    std::fclose(out);
+    std::printf("info string nnue-data: %ld positions, %ld skipped\n", n, bad);
+    std::fflush(stdout);
+}
+}  // namespace
+
 int uci_main(int argc, char** argv) {
     Engine e;
 
@@ -285,6 +351,12 @@ int uci_main(int argc, char** argv) {
             std::fflush(stdout);
         } else if (token == "eval") {
             std::printf("%s", eval_trace(e.pos).c_str());
+            if (nnue::loaded()) {
+                nnue::Evaluator ev;
+                ev.reset(e.pos);
+                std::printf("NNUE (%s): %d cp (side to move, before fifty-move damping)\n",
+                            nnue::loaded_name().c_str(), ev.evaluate(e.pos));
+            }
             std::fflush(stdout);
         } else if (token == "bench") {
             int depth = DefaultBenchDepth;
@@ -296,6 +368,10 @@ int uci_main(int argc, char** argv) {
             std::string in_path, out_path;
             is >> in_path >> out_path;
             texel_features(in_path, out_path);
+        } else if (token == "nnue-data") {
+            std::string in_path, out_path;
+            is >> in_path >> out_path;
+            nnue_data(in_path, out_path);
         } else if (token == "datagen") {
             // datagen <out> <games> <nodes> <seed>: self-play training data (src/tools/datagen.cpp).
             DatagenConfig cfg;

@@ -149,7 +149,16 @@ void Search::print_info(int depth, Value score, const PV& pv) const {
     std::fflush(stdout);
 }
 
+Value Search::static_evaluate(const Position& pos) const {
+    if (!use_nnue) return evaluate(pos);
+    // Same fifty-move damping as the HCE.
+    const int v = nn.evaluate(pos) * (200 - pos.rule50()) / 200;
+    return std::clamp(v, VALUE_MATED_IN_MAX_PLY + 1, VALUE_MATE_IN_MAX_PLY - 1);
+}
+
 SearchResult Search::run(Position& pos, const SearchLimits& limits, bool silent) {
+    use_nnue = nnue::loaded();
+    if (use_nnue) nn.reset(pos);
     start = Clock::now();
     lim = limits;
     stop_flag.store(false);
@@ -240,7 +249,7 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
     if (!root) {
         if (pos.is_repetition(ply) || pos.insufficient_material()) return VALUE_DRAW;
         if (pos.is_fifty_move_draw()) return in_check && !has_legal_move(pos) ? mated_in(ply) : VALUE_DRAW;
-        if (ply >= MAX_PLY - 1) return in_check ? VALUE_DRAW : evaluate(pos);
+        if (ply >= MAX_PLY - 1) return in_check ? VALUE_DRAW : static_evaluate(pos);
 
         // Mate distance pruning
         alpha = std::max(alpha, mated_in(ply));
@@ -262,7 +271,7 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
     }
     if (tt_move && !pos.pseudo_legal(tt_move)) tt_move = Move::none();
 
-    Value static_eval = in_check ? VALUE_NONE : evaluate(pos);
+    Value static_eval = in_check ? VALUE_NONE : static_evaluate(pos);
 
     // EXP-004: reverse futility pruning (static null move) at shallow depth.
     if (!pv_node && !in_check && !root && !excl && depth <= 8 && std::abs(beta) < VALUE_MATE_IN_MAX_PLY &&
@@ -274,9 +283,11 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
     if (!pv_node && !in_check && !root && !excl && depth >= 3 && static_eval >= beta && pos.plies_from_null() > 0 &&
         pos.non_pawn_material_count(pos.side_to_move()) > 0) {
         int R = 3 + depth / 3 + std::min((static_eval - beta) / 200, 3);
+        if (use_nnue) nn.push_null();
         pos.make_null();
         Value null_score = -negamax(pos, -beta, -beta + 1, depth - R, ply + 1, false);
         pos.unmake_null();
+        if (use_nnue) nn.pop();
         if (stop_flag.load(std::memory_order_relaxed)) return 0;
         if (null_score >= beta) return null_score >= VALUE_MATE_IN_MAX_PLY ? beta : null_score;
     }
@@ -331,7 +342,7 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
             !pos.see_ge(m, quiet ? -50 * depth : -100 * depth))
             continue;
 
-        pos.make_move(m);
+        make_move(pos, m);
         Value score;
         if (legal == 1) {
             score = -negamax(pos, -beta, -alpha, new_depth, ply + 1, pv_node);
@@ -350,7 +361,7 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
             if (score > alpha && score < beta)
                 score = -negamax(pos, -beta, -alpha, new_depth, ply + 1, true);
         }
-        pos.unmake_move(m);
+        unmake_move(pos, m);
 
         if (stop_flag.load(std::memory_order_relaxed)) return 0;
         if (!m.is_tactical() && n_quiets < 64) quiets_tried[n_quiets++] = m;
@@ -391,7 +402,7 @@ Value Search::qsearch(Position& pos, Value alpha, Value beta, int ply, bool pv_n
 
     if (pos.is_repetition(ply) || pos.insufficient_material()) return VALUE_DRAW;
     const bool in_check = pos.in_check();
-    if (ply >= MAX_PLY - 1) return in_check ? VALUE_DRAW : evaluate(pos);
+    if (ply >= MAX_PLY - 1) return in_check ? VALUE_DRAW : static_evaluate(pos);
 
     TTData tte{};
     if (!pv_node && tt.probe(pos.key(), tte)) {
@@ -403,7 +414,7 @@ Value Search::qsearch(Position& pos, Value alpha, Value beta, int ply, bool pv_n
 
     Value best = -VALUE_INFINITE;
     if (!in_check) {
-        best = evaluate(pos);  // stand pat
+        best = static_evaluate(pos);  // stand pat
         if (best >= beta) return best;
         alpha = std::max(alpha, best);
     }
@@ -423,9 +434,9 @@ Value Search::qsearch(Position& pos, Value alpha, Value beta, int ply, bool pv_n
         // EXP-008: skip captures that lose material by static exchange.
         if (!in_check && !pos.see_ge(m, 0)) continue;
 
-        pos.make_move(m);
+        make_move(pos, m);
         Value score = -qsearch(pos, -beta, -alpha, ply + 1, pv_node);
-        pos.unmake_move(m);
+        unmake_move(pos, m);
         if (stop_flag.load(std::memory_order_relaxed)) return 0;
 
         if (score > best) {

@@ -10,6 +10,7 @@
 
 #include "core/movegen.h"
 #include "core/position.h"
+#include "eval/nnue/nnue.h"
 #include "search/tt.h"
 
 namespace apex {
@@ -62,6 +63,19 @@ private:
     void setup_time(const Position& pos, const SearchLimits& limits);
     std::int64_t elapsed_ms() const;
     void print_info(int depth, Value score, const PV& pv) const;
+
+    // M8: NNUE accumulators (used only when a network is loaded; HCE otherwise).
+    nnue::Evaluator nn;
+    bool use_nnue = false;
+    Value static_evaluate(const Position& pos) const;
+    void make_move(Position& pos, Move m) {
+        if (use_nnue) nn.push(pos, m);
+        pos.make_move(m);
+    }
+    void unmake_move(Position& pos, Move m) {
+        pos.unmake_move(m);
+        if (use_nnue) nn.pop();
+    }
 
     TranspositionTable& tt;
     std::atomic<bool> stop_flag{false};

@@ -10,6 +10,7 @@
 #include "core/movegen.h"
 #include "core/position.h"
 #include "core/prng.h"
+#include "eval/nnue/nnue.h"
 
 using namespace apex;
 
@@ -235,6 +236,75 @@ static void test_see() {
     }
 }
 
+
+// M8: incremental NNUE accumulator updates must equal a full refresh after every move
+// (including castling, en passant and promotions), using a random network.
+static void test_nnue_incremental(int games) {
+    using namespace apex::nnue;
+    const char* path = "test_nnue_random.bin";
+    {
+        PRNG rng(4242);
+        std::FILE* f = std::fopen(path, "wb");
+        CHECK(f != nullptr, "cannot create %s", path);
+        if (!f) return;
+        std::fwrite("APXN", 1, 4, f);
+        std::uint32_t hdr[3] = {1, INPUTS, HIDDEN};
+        std::fwrite(hdr, sizeof(hdr), 1, f);
+        auto put = [&](int count, int range) {
+            for (int i = 0; i < count; ++i) {
+                std::int16_t v = std::int16_t(int(rng.rand() % std::uint64_t(2 * range + 1)) - range);
+                std::fwrite(&v, sizeof(v), 1, f);
+            }
+        };
+        put(INPUTS * HIDDEN, 60);
+        put(HIDDEN, 100);
+        put(2 * HIDDEN, 120);
+        put(1, 500);
+        std::fclose(f);
+    }
+    std::string err;
+    CHECK(load(path, err), "load random net: %s", err.c_str());
+    std::remove(path);
+    if (!loaded()) return;
+
+    PRNG rng(77);
+    const char* starts[] = {
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "8/2P5/8/8/8/8/5p2/K6k w - - 0 1",
+        "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3",
+    };
+    Evaluator inc, fresh;
+    for (int g = 0; g < games; ++g) {
+        Position pos(starts[g % 4]);
+        inc.reset(pos);
+        for (int ply = 0; ply < 120; ++ply) {
+            MoveList legal;
+            generate_legal(pos, legal);
+            if (legal.empty()) break;
+            Move m = legal[int(rng.rand() % std::uint64_t(legal.size()))].move;
+            if (ply < 60 && (rng.rand() & 7) == 0) {  // occasionally a null move
+                if (!pos.in_check()) {
+                    inc.push_null();
+                    pos.make_null();
+                    fresh.reset(pos);
+                    CHECK(inc.evaluate(pos) == fresh.evaluate(pos), "nnue mismatch after null in %s",
+                          pos.fen().c_str());
+                    pos.unmake_null();
+                    inc.pop();
+                }
+            }
+            inc.push(pos, m);
+            pos.make_move(m);
+            fresh.reset(pos);
+            CHECK(inc.evaluate(pos) == fresh.evaluate(pos), "nnue mismatch after %s: %s",
+                  Position::move_to_uci(m).c_str(), pos.fen().c_str());
+            if (failures) break;
+        }
+    }
+    unload();
+}
+
 int main(int argc, char** argv) {
     init_core();
     bool deep = argc > 1 && std::strcmp(argv[1], "--deep") == 0;
@@ -243,6 +313,7 @@ int main(int argc, char** argv) {
     test_see();
     test_fuzz(deep ? 2000 : 200);
     test_perft(deep);
+    test_nnue_incremental(deep ? 400 : 60);
     if (failures) {
         std::printf("%d FAILURE(S)\n", failures);
         return 1;
