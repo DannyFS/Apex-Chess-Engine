@@ -137,3 +137,18 @@ Implementation: cont[prev piece][prev to][piece][to] (int16, heap) for 1 and 2 p
 Bench: 92972 → 90986.
 Result: **inconclusive** at the 3000-game cap. Elo +3.0 ± 9.4, LLR −0.25. See BENCHMARKS.md.
 Analysis: in modern engines continuation history is a major ordering signal, but here it does not show up at this resolution. Likely reasons: (1) it is used only for ordering, not in LMR/pruning decisions, where most of its value comes from in strong engines; (2) with LMP pruning late quiets anyway, ordering among quiets matters less; (3) the HCE is noisy. Retry candidate after M6/NNUE: continuation history combined with history-based LMR adjustments. The code is kept as a patch.
+
+---
+
+## EXP-015: Texel-tuned evaluation (M6 v1)   [status: accepted]
+Hypothesis: the hand-written M3 evaluation (material + PST + bishop pair) is far from optimal. Adding standard positional terms and fitting all weights to game results from our own self-play gives a large gain.
+Implementation:
+- Evaluation refactor: every term is a (mg, eg) weight times an integer feature count (src/eval/eval_layout.h, src/eval/weights.inc). New terms: mobility tables per piece (safe squares: not own pieces, not attacked by enemy pawns), passed pawns by rank, doubled, isolated, rook on open/semi-open file, king shelter pawns, king-zone attacks per piece type. With the hand-written weights and zero weights for the new terms, the refactor is identical to the old eval (bench 92972 unchanged).
+- Data: tools/texel/extract.py took 1,072,299 unique quiet positions (≥ 8 plies after the book, not in check, the move played was not a capture/promotion) from all 12,032 Apex self-play games so far (validation and SPRT PGNs). Labels are game results. No external engine data (ARCHITECTURE §6).
+- Tuning: tools/texel/tune.py; K fitted then frozen (1.269); Adam, 3000 iterations, 10% held out; L2 penalty 5e-9 toward the start weights. Without the penalty (run v1) rare features overfit (for example queen mobility 25 got +825 mg); v1 was never played.
+Bench: 92972 → 92341.
+Result: **H1 accepted** after 176 games (LLR 2.96). Elo +312.4 ± 58.4 (nElo +459.4 ± 51.3); W/L/D 138/12/26; pentanomial [0, 1, 12, 23, 52]; 0 time forfeits.
+Analysis: by far the largest single gain, confirming that evaluation quality was the main weakness after the M5 search work. Consequences:
+1. All pruning margins (RFP 80/ply, futility 100+100·d, SEE thresholds, aspiration δ) were set for the old eval scale. The tuned eval has larger piece values (queen 974/938 vs 980/960, but much larger positional swings), so the margins should be re-tested.
+2. Experiments that were inconclusive with the old eval (EXP-006 check extension, EXP-010 continuation history) may behave differently now.
+3. The next Texel round should use games played by this stronger engine (more and better data); this is cheap to repeat, because every SPRT produces thousands of games.

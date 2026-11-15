@@ -120,3 +120,9 @@ commit: aadc21b (branch exp/010-conthist, not merged)   machine: cloud-xeon-4vcp
 change vs baseline (EXP-008): 1- and 2-ply continuation history added to quiet-move ordering scores
 bench: nodes=90986
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 110, [0, 10], cap 3000 → **inconclusive**; games=3000; Elo=+3.0 ± 9.4; nElo=+4.0 ± 12.4; pentanomial=[124, 341, 553, 349, 133]; LLR=−0.25; W/L/D 932/906/1162; time forfeits 0
+
+### EXP-015 (Texel-tuned evaluation, M6 v1): 2026-11-15. New champion.
+commit: (this commit)   machine: cloud-xeon-4vcpu   net: none (tuned HCE)   methodology: v1.1
+change vs baseline (EXP-008): evaluation rewritten as linear (mg, eg) weights × features, with new terms (mobility, passed/doubled/isolated pawns, rook files, king shelter, king-zone attacks), all 474 weights Texel-tuned (L2 5e-9) on 1.07M quiet positions from 12k Apex self-play games. Held-out MSE 0.09128 → 0.08543.
+bench: nodes=92341; NPS about 10–15% below EXP-008 (more eval terms; noisy measurement during a match)
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 115, [0, 10], cap 3000 → **H1 accepted**; games=176; Elo=+312.4 ± 58.4; nElo=+459.4 ± 51.3; pentanomial=[0, 1, 12, 23, 52]; LLR=2.96; W/L/D 138/12/26; time forfeits 0
