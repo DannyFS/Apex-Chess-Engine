@@ -152,3 +152,12 @@ Analysis: by far the largest single gain, confirming that evaluation quality was
 1. All pruning margins (RFP 80/ply, futility 100+100·d, SEE thresholds, aspiration δ) were set for the old eval scale. The tuned eval has larger piece values (queen 974/938 vs 980/960, but much larger positional swings), so the margins should be re-tested.
 2. Experiments that were inconclusive with the old eval (EXP-006 check extension, EXP-010 continuation history) may behave differently now.
 3. The next Texel round should use games played by this stronger engine (more and better data); this is cheap to repeat, because every SPRT produces thousands of games.
+
+---
+
+## EXP-014: Pawn-structure correction history   [status: inconclusive, re-test candidate]
+Hypothesis: the static eval has systematic errors per pawn structure that the search can measure. Learning a per-pawn-key correction online makes pruning decisions (RFP, NMP, futility) and qsearch stand-pat more accurate.
+Implementation: corr[stm][pawn_key & 16383] (scaled by 256) added to the static eval; updated at node end with weight min(depth + 1, 16) toward best − static_eval, only when not in check, the best move is quiet or none, the score is not a mate score, and the bound is consistent with the sign of the error.
+Bench: 92341 → 110102.
+Result: **inconclusive** at the 3000-game cap: Elo +9.6 ± 8.8 (nElo +13.6 ± 12.4), LLR 2.14 (73% of the way to H1). See BENCHMARKS.md.
+Analysis: very likely a real gain of about +5 to +15 Elo, below what [0, 10] can confirm in 3000 games. Plan: an independent confirmation test after the current queue (fresh seed), possibly with bounds [0, 5] and a larger cap, or bundled with a Texel re-tune if both pass separately.

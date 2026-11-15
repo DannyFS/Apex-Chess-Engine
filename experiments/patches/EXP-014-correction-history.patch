@@ -1,0 +1,94 @@
+From 945fb1e2d229dfc5dca1a00fdd723dab3e8b95bc Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 14 Nov 2026 11:44:39 +0000
+Subject: [PATCH] EXP-014: pawn-structure correction history
+
+corr[stm][pawn_key & 16383] (scaled by 256) is added to the static eval in
+negamax and qsearch stand-pat. Updated at node end with weight min(depth+1,16)
+toward best - static_eval, when not in check, best move quiet or none,
+score not mate, and the bound agrees with the sign of the error.
+bench: 94007
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01G5iCbWbUZgUFhzRNanL4Ca
+---
+ src/search/search.cpp | 24 ++++++++++++++++++++++--
+ src/search/search.h   |  6 ++++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/search/search.cpp b/src/search/search.cpp
+index 450b00a..9a560ef 100644
+--- a/src/search/search.cpp
++++ b/src/search/search.cpp
+@@ -68,6 +68,21 @@ inline void apply_gravity(int& h, int bonus) {
+ void Search::clear() {
+     for (auto& k : killers) k[0] = k[1] = Move::none();
+     std::fill(&history[0][0][0], &history[0][0][0] + sizeof(history) / sizeof(int), 0);
++    std::fill(&corr_hist[0][0], &corr_hist[0][0] + sizeof(corr_hist) / sizeof(int), 0);
++}
++
++Value Search::corrected_eval(const Position& pos) const {
++    Value raw = evaluate(pos);
++    int c = corr_hist[pos.side_to_move()][pos.pawn_key() & (CorrSize - 1)] / CorrGrain;
++    return std::clamp(raw + c, VALUE_MATED_IN_MAX_PLY + 1, VALUE_MATE_IN_MAX_PLY - 1);
++}
++
++void Search::update_correction(const Position& pos, Value static_eval, Value best, int depth) {
++    int& c = corr_hist[pos.side_to_move()][pos.pawn_key() & (CorrSize - 1)];
++    const int w = std::min(depth + 1, 16);
++    const int diff = (best - static_eval) * CorrGrain;
++    // Move the slot toward the observed error (diff is relative to the corrected eval).
++    c = std::clamp((c * (256 - w) + (c + diff) * w) / 256, -CorrMax, CorrMax);
+ }
+ 
+ // Scores moves in-place: TT move, captures/promotions by MVV-LVA, killers, then quiets by history.
+@@ -260,7 +275,7 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
+     }
+     if (tt_move && !pos.pseudo_legal(tt_move)) tt_move = Move::none();
+ 
+-    Value static_eval = in_check ? VALUE_NONE : evaluate(pos);
++    Value static_eval = in_check ? VALUE_NONE : corrected_eval(pos);
+ 
+     // EXP-004: reverse futility pruning (static null move) at shallow depth.
+     if (!pv_node && !in_check && !root && depth <= 8 && std::abs(beta) < VALUE_MATE_IN_MAX_PLY &&
+@@ -362,6 +377,11 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
+     if (legal == 0) return in_check ? mated_in(ply) : VALUE_DRAW;
+ 
+     Bound bound = best >= beta ? BOUND_LOWER : (alpha > old_alpha ? BOUND_EXACT : BOUND_UPPER);
++    // EXP-014: learn from the search result when it says something reliable about the
++    // eval: quiet (or no) best move, not a mate score, and the bound agrees with the error sign.
++    if (!in_check && (!best_move || !best_move.is_tactical()) && std::abs(best) < VALUE_MATE_IN_MAX_PLY &&
++        !(bound == BOUND_LOWER && best <= static_eval) && !(bound == BOUND_UPPER && best >= static_eval))
++        update_correction(pos, static_eval, best, depth);
+     tt.store(pos.key(), best_move, value_to_tt(best, ply), static_eval == VALUE_NONE ? 0 : static_eval, depth, bound);
+     return best;
+ }
+@@ -387,7 +407,7 @@ Value Search::qsearch(Position& pos, Value alpha, Value beta, int ply, bool pv_n
+ 
+     Value best = -VALUE_INFINITE;
+     if (!in_check) {
+-        best = evaluate(pos);  // stand pat
++        best = corrected_eval(pos);  // stand pat (EXP-014: corrected)
+         if (best >= beta) return best;
+         alpha = std::max(alpha, best);
+     }
+diff --git a/src/search/search.h b/src/search/search.h
+index 95ef03a..9fc9872 100644
+--- a/src/search/search.h
++++ b/src/search/search.h
+@@ -77,6 +77,12 @@ private:
+     // Quiet-move ordering heuristics (EXP-002)
+     Move killers[MAX_PLY + 2][2] = {};
+     int history[COLOR_NB][SQUARE_NB][SQUARE_NB] = {};
++    // EXP-014: pawn-structure correction history. Online estimate of the static eval's
++    // error for each pawn structure (side to move x pawn-key slot), scaled by CorrGrain.
++    static constexpr int CorrSize = 16384, CorrGrain = 256, CorrMax = 32 * CorrGrain;
++    int corr_hist[COLOR_NB][CorrSize] = {};
++    Value corrected_eval(const Position& pos) const;
++    void update_correction(const Position& pos, Value raw_eval, Value best, int depth);
+     void update_quiet_stats(const Position& pos, Move best, const Move* quiets, int n_quiets, int depth, int ply);
+     void score_moves(const Position& pos, MoveList& list, Move tt_move, int ply) const;
+ };
+-- 
+2.43.0
+

@@ -126,3 +126,10 @@ commit: (this commit)   machine: cloud-xeon-4vcpu   net: none (tuned HCE)   meth
 change vs baseline (EXP-008): evaluation rewritten as linear (mg, eg) weights × features, with new terms (mobility, passed/doubled/isolated pawns, rook files, king shelter, king-zone attacks), all 474 weights Texel-tuned (L2 5e-9) on 1.07M quiet positions from 12k Apex self-play games. Held-out MSE 0.09128 → 0.08543.
 bench: nodes=92341; NPS about 10–15% below EXP-008 (more eval terms; noisy measurement during a match)
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 115, [0, 10], cap 3000 → **H1 accepted**; games=176; Elo=+312.4 ± 58.4; nElo=+459.4 ± 51.3; pentanomial=[0, 1, 12, 23, 52]; LLR=2.96; W/L/D 138/12/26; time forfeits 0
+
+### EXP-014 (correction history): 2026-11-15. Inconclusive, not merged (re-test candidate).
+commit: 945fb1e (branch exp/014-corrhist, not merged)   machine: cloud-xeon-4vcpu   net: none   methodology: v1.1
+change vs baseline (EXP-015): pawn-key correction history added to the static eval (negamax and qsearch stand-pat)
+bench: nodes=110102
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 114, [0, 10], cap 3000 → **inconclusive**; games=3000; Elo=+9.6 ± 8.8; nElo=+13.6 ± 12.4; pentanomial=[81, 354, 580, 371, 114]; LLR=2.14; W/L/D 941/858/1201; time forfeits 0
+note: the 95% interval excludes zero, but the pre-declared rule (v1.1) is "not merged at the cap". It will get a fresh, independent confirmation test (new seed, no reuse of these games) rather than an exception.
