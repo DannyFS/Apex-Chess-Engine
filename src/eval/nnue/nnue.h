@@ -49,17 +49,29 @@ inline int feature(Color persp, Piece pc, Square sq) {
     return rel * 384 + int(type_of(pc)) * 64 + s;
 }
 
-// Accumulator stack for one search thread.
+// Feature changes caused by one move, per perspective: up to 2 added, 2 removed.
+struct Delta {
+    int n_add = 0, n_sub = 0;
+    int add[COLOR_NB][2];
+    int sub[COLOR_NB][2];
+};
+
+// Accumulator stack for one search thread. Updates are lazy: push() only records the
+// feature delta; the accumulator is brought up to date when evaluate() needs it, so
+// nodes cut off before their static eval (TT hits, repetitions) cost nothing.
 class Evaluator {
 public:
     void reset(const Position& pos);             // full refresh at the root
     void push(const Position& pos, Move m);      // before pos.make_move(m)
     void push_null();                            // before pos.make_null()
     void pop() { --top; }
-    Value evaluate(const Position& pos) const;   // side-to-move score in centipawns
+    Value evaluate(const Position& pos);         // side-to-move score in centipawns
 
 private:
+    void update_to_top();
     std::vector<Accumulator> stack = std::vector<Accumulator>(MAX_PLY + 8);
+    std::vector<Delta> deltas = std::vector<Delta>(MAX_PLY + 8);
+    std::vector<char> computed = std::vector<char>(MAX_PLY + 8, 0);
     int top = 0;
 };
 

@@ -65,7 +65,7 @@ private:
     void print_info(int depth, Value score, const PV& pv) const;
 
     // M8: NNUE accumulators (used only when a network is loaded; HCE otherwise).
-    nnue::Evaluator nn;
+    mutable nnue::Evaluator nn;  // lazily updated inside const evaluation
     bool use_nnue = false;
     Value static_evaluate(const Position& pos) const;
     void make_move(Position& pos, Move m) {

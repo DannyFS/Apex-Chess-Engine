@@ -7,6 +7,10 @@
 #include <cstring>
 #include <memory>
 
+#if defined(__AVX2__)
+#include <immintrin.h>
+#endif
+
 namespace apex::nnue {
 
 namespace {
@@ -83,60 +87,116 @@ void Evaluator::reset(const Position& pos) {
             add_feature(a.v[c], feature(c, pos.piece_on(s), s));
         }
     }
+    computed[0] = 1;
 }
 
 void Evaluator::push_null() {
-    stack[top + 1] = stack[top];
     ++top;
+    deltas[top].n_add = deltas[top].n_sub = 0;
+    computed[top] = 0;
 }
 
 void Evaluator::push(const Position& pos, Move m) {
-    Accumulator& dst = stack[top + 1];
-    dst = stack[top];
     ++top;
+    Delta& d = deltas[top];
+    computed[top] = 0;
 
     const Color us = pos.side_to_move();
     const Square from = m.from(), to = m.to();
     const Piece pc = pos.piece_on(from);
     const Piece placed = m.is_promotion() ? make_piece(us, m.promo_type()) : pc;
-
+    d.n_add = 1;
+    d.n_sub = 1;
     for (Color c : {WHITE, BLACK}) {
-        std::int16_t* a = dst.v[c];
-        sub_feature(a, feature(c, pc, from));
-        add_feature(a, feature(c, placed, to));
-        if (m.is_ep()) {
-            const Square cap = Square(int(to) + (us == WHITE ? -8 : 8));
-            sub_feature(a, feature(c, make_piece(~us, PAWN), cap));
-        } else if (m.is_capture()) {
-            sub_feature(a, feature(c, pos.piece_on(to), to));
-        } else if (m.is_castle()) {
-            const bool oo = m.flag() == MF_KING_CASTLE;
-            const Square rfrom = relative_square(us, oo ? SQ_H1 : SQ_A1);
-            const Square rto = relative_square(us, oo ? SQ_F1 : SQ_D1);
-            const Piece rook = make_piece(us, ROOK);
-            sub_feature(a, feature(c, rook, rfrom));
-            add_feature(a, feature(c, rook, rto));
+        d.sub[c][0] = feature(c, pc, from);
+        d.add[c][0] = feature(c, placed, to);
+    }
+    if (m.is_ep()) {
+        const Square cap = Square(int(to) + (us == WHITE ? -8 : 8));
+        for (Color c : {WHITE, BLACK}) d.sub[c][1] = feature(c, make_piece(~us, PAWN), cap);
+        d.n_sub = 2;
+    } else if (m.is_capture()) {
+        for (Color c : {WHITE, BLACK}) d.sub[c][1] = feature(c, pos.piece_on(to), to);
+        d.n_sub = 2;
+    } else if (m.is_castle()) {
+        const bool oo = m.flag() == MF_KING_CASTLE;
+        const Square rfrom = relative_square(us, oo ? SQ_H1 : SQ_A1);
+        const Square rto = relative_square(us, oo ? SQ_F1 : SQ_D1);
+        const Piece rook = make_piece(us, ROOK);
+        for (Color c : {WHITE, BLACK}) {
+            d.sub[c][1] = feature(c, rook, rfrom);
+            d.add[c][1] = feature(c, rook, rto);
         }
+        d.n_sub = d.n_add = 2;
     }
 }
 
-Value Evaluator::evaluate(const Position& pos) const {
+// Brings stack[top] up to date from the nearest computed ancestor, one fused pass
+// (copy + all adds/subs) per ply.
+void Evaluator::update_to_top() {
+    int j = top;
+    while (!computed[j]) --j;
+    for (int k = j + 1; k <= top; ++k) {
+        const Delta& d = deltas[k];
+        for (Color c : {WHITE, BLACK}) {
+            const std::int16_t* src = stack[k - 1].v[c];
+            std::int16_t* dst = stack[k].v[c];
+            if (d.n_add == 0 && d.n_sub == 0) {
+                std::memcpy(dst, src, sizeof(stack[k].v[c]));
+                continue;
+            }
+            const std::int16_t* a0 = net->ft_w + d.add[c][0] * HIDDEN;
+            const std::int16_t* s0 = net->ft_w + d.sub[c][0] * HIDDEN;
+            if (d.n_add == 1 && d.n_sub == 1) {
+                for (int i = 0; i < HIDDEN; ++i) dst[i] = std::int16_t(src[i] + a0[i] - s0[i]);
+            } else if (d.n_add == 1) {  // capture / en passant
+                const std::int16_t* s1 = net->ft_w + d.sub[c][1] * HIDDEN;
+                for (int i = 0; i < HIDDEN; ++i) dst[i] = std::int16_t(src[i] + a0[i] - s0[i] - s1[i]);
+            } else {  // castling
+                const std::int16_t* a1 = net->ft_w + d.add[c][1] * HIDDEN;
+                const std::int16_t* s1 = net->ft_w + d.sub[c][1] * HIDDEN;
+                for (int i = 0; i < HIDDEN; ++i) dst[i] = std::int16_t(src[i] + a0[i] + a1[i] - s0[i] - s1[i]);
+            }
+        }
+        computed[k] = 1;
+    }
+}
+
+namespace {
+// Sum over one perspective of clamp(acc, 0, QA)^2 * w. Each term is at most
+// 255 * 255 * 127 (8.3M), so the 128-term sum (at most 1.06e9) fits in int32.
+inline std::int32_t screlu_dot(const std::int16_t* acc, const std::int16_t* w) {
+#if defined(__AVX2__)
+    const __m256i zero = _mm256_setzero_si256();
+    const __m256i qa = _mm256_set1_epi16(QA);
+    __m256i sum = _mm256_setzero_si256();
+    for (int i = 0; i < HIDDEN; i += 16) {
+        __m256i x = _mm256_load_si256(reinterpret_cast<const __m256i*>(acc + i));
+        x = _mm256_min_epi16(_mm256_max_epi16(x, zero), qa);
+        const __m256i wv = _mm256_load_si256(reinterpret_cast<const __m256i*>(w + i));
+        const __m256i xw = _mm256_mullo_epi16(x, wv);              // |x*w| <= 32385: fits int16
+        sum = _mm256_add_epi32(sum, _mm256_madd_epi16(xw, x));     // (x*w)*x, pairwise into int32
+    }
+    __m128i s = _mm_add_epi32(_mm256_castsi256_si128(sum), _mm256_extracti128_si256(sum, 1));
+    s = _mm_add_epi32(s, _mm_shuffle_epi32(s, 0x4E));
+    s = _mm_add_epi32(s, _mm_shuffle_epi32(s, 0xB1));
+    return _mm_cvtsi128_si32(s);
+#else
+    std::int32_t sum = 0;
+    for (int i = 0; i < HIDDEN; ++i) {
+        const int x = std::clamp<int>(acc[i], 0, QA);
+        sum += x * w[i] * x;
+    }
+    return sum;
+#endif
+}
+}  // namespace
+
+Value Evaluator::evaluate(const Position& pos) {
+    if (!computed[top]) update_to_top();
     const Accumulator& a = stack[top];
     const Color us = pos.side_to_move();
-    const std::int16_t* sides[2] = {a.v[us], a.v[~us]};
-    std::int64_t sum = 0;
-    for (int s = 0; s < 2; ++s) {
-        const std::int16_t* acc = sides[s];
-        const std::int16_t* w = net->out_w + s * HIDDEN;
-        // Each term x*w*x is at most 255 * 127 * 255 (8.3M); 16 terms fit in int32.
-        std::int32_t part = 0;
-        for (int i = 0; i < HIDDEN; ++i) {
-            const int x = std::clamp<int>(acc[i], 0, QA);
-            part += x * w[i] * x;
-            if ((i & 15) == 15) { sum += part; part = 0; }
-        }
-        sum += part;
-    }
+    const std::int64_t sum = std::int64_t(screlu_dot(a.v[us], net->out_w)) + screlu_dot(a.v[~us], net->out_w + HIDDEN);
     // sum is in units QA*QA*QB; SCReLU output / QA, plus bias (QA*QB), then scale.
     const std::int64_t v = (sum / QA + net->out_b) * SCALE / (std::int64_t(QA) * QB);
     return Value(std::clamp<std::int64_t>(v, VALUE_MATED_IN_MAX_PLY + 1, VALUE_MATE_IN_MAX_PLY - 1));
