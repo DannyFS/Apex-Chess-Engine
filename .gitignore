@@ -5,3 +5,4 @@ build-*/
 books/
 results/
 config.json
+!nets/*.nnue

@@ -38,6 +38,7 @@ struct Accumulator {
 // Loads a network file (format documented in tools/nnue/README.md). Returns false
 // and leaves the current state unchanged on any error.
 bool load(const std::string& path, std::string& error);
+bool load_embedded(std::string& error);  // the network compiled into the binary (CMake APEX_NET)
 bool loaded();
 const std::string& loaded_name();  // file name and SHA-256 prefix of the loaded net
 void unload();

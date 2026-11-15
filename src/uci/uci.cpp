@@ -81,7 +81,7 @@ void cmd_uci() {
     std::printf("option name Threads type spin default 1 min 1 max 1\n");
     std::printf("option name Move Overhead type spin default 10 min 0 max 5000\n");
     std::printf("option name Ponder type check default false\n");
-    std::printf("option name EvalFile type string default <empty>\n");
+    std::printf("option name EvalFile type string default <embedded>\n");
     std::printf("uciok\n");
     std::fflush(stdout);
 }
@@ -101,11 +101,18 @@ void cmd_setoption(Engine& e, std::istringstream& is) {
         } else if (lname == "move overhead") {
             e.search->config.move_overhead_ms = std::clamp(std::stoi(value), 0, 5000);
         } else if (lname == "evalfile") {
-            // M8: an NNUE network file; "<empty>" (the default) selects the hand-crafted eval.
+            // NNUE network: "<embedded>" (default) = the net compiled into the binary,
+            // "<hce>" or "<empty>" = the hand-crafted eval, anything else = a file path.
             e.wait();
-            if (value.empty() || value == "<empty>") {
+            if (value.empty() || value == "<empty>" || value == "<hce>") {
                 nnue::unload();
                 std::printf("info string eval: hand-crafted\n");
+            } else if (value == "<embedded>") {
+                std::string err;
+                if (nnue::load_embedded(err))
+                    std::printf("info string eval: NNUE %s\n", nnue::loaded_name().c_str());
+                else
+                    std::printf("info string embedded NNUE not loaded (%s)\n", err.c_str());
             } else {
                 std::string err;
                 if (nnue::load(value, err))

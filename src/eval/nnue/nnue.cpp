@@ -39,15 +39,10 @@ inline void sub_feature(std::int16_t* acc, int f) {
 }
 }  // namespace
 
-bool load(const std::string& path, std::string& error) {
-    std::FILE* f = std::fopen(path.c_str(), "rb");
-    if (!f) { error = "cannot open " + path; return false; }
-    std::vector<unsigned char> data;
-    unsigned char buf[65536];
-    std::size_t n;
-    while ((n = std::fread(buf, 1, sizeof(buf), f)) > 0) data.insert(data.end(), buf, buf + n);
-    std::fclose(f);
+namespace {
+#include "embedded_net.inc"
 
+bool load_bytes(const std::vector<unsigned char>& data, const std::string& name, std::string& error) {
     const std::size_t header = 16;
     const std::size_t body = (std::size_t(INPUTS) * HIDDEN + HIDDEN + 2 * HIDDEN + 1) * sizeof(std::int16_t);
     if (data.size() != header + body) { error = "wrong file size"; return false; }
@@ -67,9 +62,26 @@ bool load(const std::string& path, std::string& error) {
 
     char id[32];
     std::snprintf(id, sizeof(id), "%016llx", (unsigned long long)fnv1a(data));
-    const std::size_t slash = path.find_last_of("/\\");
-    net_name = (slash == std::string::npos ? path : path.substr(slash + 1)) + " (fnv " + id + ")";
+    net_name = name + " (fnv " + id + ")";
     return true;
+}
+}  // namespace
+
+bool load(const std::string& path, std::string& error) {
+    std::FILE* f = std::fopen(path.c_str(), "rb");
+    if (!f) { error = "cannot open " + path; return false; }
+    std::vector<unsigned char> data;
+    unsigned char buf[65536];
+    std::size_t n;
+    while ((n = std::fread(buf, 1, sizeof(buf), f)) > 0) data.insert(data.end(), buf, buf + n);
+    std::fclose(f);
+    const std::size_t slash = path.find_last_of("/\\");
+    return load_bytes(data, slash == std::string::npos ? path : path.substr(slash + 1), error);
+}
+
+bool load_embedded(std::string& error) {
+    std::vector<unsigned char> data(EmbeddedNet, EmbeddedNet + sizeof(EmbeddedNet));
+    return load_bytes(data, std::string(EmbeddedNetName) + " [embedded]", error);
 }
 
 bool loaded() { return net != nullptr; }
