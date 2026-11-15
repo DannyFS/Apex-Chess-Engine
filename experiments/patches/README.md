@@ -8,3 +8,4 @@ Rejected and inconclusive experiments are kept here as `git format-patch` files,
 | EXP-009-tt-buckets.patch | rejected (−5.8 ± 9.6 Elo, H0) | BENCHMARKS.md "EXP-009" |
 | EXP-010-continuation-history.patch | inconclusive (+3.0 ± 9.4 Elo, 3000-game cap) | BENCHMARKS.md "EXP-010" |
 | EXP-014-correction-history.patch | inconclusive (+9.6 ± 8.8 Elo, 3000-game cap); re-test candidate | BENCHMARKS.md "EXP-014" |
+| EXP-016-texel-round3.patch | inconclusive (+0.2 ± 8.8 Elo, 3000-game cap) | BENCHMARKS.md "EXP-016" |

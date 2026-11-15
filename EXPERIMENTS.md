@@ -172,3 +172,11 @@ Result: **H1 accepted** after 770 games (LLR 2.95). Elo +37.6 ± 17.9 (nElo +51.
 Analysis: a clear gain even at STC (usually reported as larger at longer time controls). It also suggests the earlier, crude check extension (EXP-006) mostly targeted the same forced lines. Untuned parameters (depth 8, margin 2d, half-depth verification) are SPSA candidates; double extensions and negative extensions are later experiments.
 
 Correction (EXP-012 entry above): the depth-9 bench figures mixed two bases. On the same base, EXP-015 (before EXP-012) gives bench 9 = 597373 nodes and EXP-012 gives 685369. The earlier "494602 → 783501" pair was measured on the EXP-008 base.
+
+---
+
+## EXP-016: Texel round 3 (more data, re-tune)   [status: inconclusive, not merged]
+Hypothesis: adding 316k positions from games played by the tuned engine and re-tuning gives a further eval gain.
+Implementation: tools/texel as in EXP-015; 1,388,071 positions; start = EXP-015 weights; L2 5e-9 toward them; 2000 iterations.
+Result: held-out MSE improved only 0.5% (0.084250 → 0.083837, vs 6.4% for EXP-015), and the match shows **no measurable effect**: Elo +0.2 ± 8.8 over 3000 games (inconclusive at the cap).
+Analysis: the linear HCE with this feature set is close to saturated on this data: more positions of the same kind no longer move the weights in ways that matter. Lesson: held-out MSE gains below about 1% should not be sent to a 3000-game SPRT. Further eval gains need new information: new features (threats, king safety by attacker count, pawn storms, outposts, space), better data (deeper self-play search, positions labelled by search score instead of only game result), or NNUE (M7–M9).

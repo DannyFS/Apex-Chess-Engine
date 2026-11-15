@@ -140,3 +140,9 @@ change vs baseline (EXP-015): singular extensions with multi-cut (depth ≥ 8; T
 bench: nodes=92341 (unchanged: never triggers at bench depth 6); bench depth 9: 685369
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 112, [0, 10], cap 3000 → **H1 accepted**; games=770; Elo=+37.6 ± 17.9; nElo=+51.9 ± 24.5; pentanomial=[15, 79, 143, 104, 44]; LLR=2.95; W/L/D 258/175/337; time forfeits 0
 methodology note: the depth-6 bench signature cannot see changes that act only at depth ≥ 8. From now on, such changes also record `bench 9` in their entry. Moving the signature to a deeper bench is a candidate for methodology v2.
+
+### EXP-016 (Texel round 3 weights): 2026-11-16. Inconclusive, not merged.
+commit: 13bcd8a (branch exp/016-texel-v3, not merged)   machine: cloud-xeon-4vcpu   net: none   methodology: v1.1
+change vs baseline (EXP-012): weights re-tuned from EXP-015's on 1.39M positions (15.2k games, incl. 3.2k with the EXP-015 eval); held-out MSE 0.084250 → 0.083837
+bench: nodes=113875
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 116, [0, 10], cap 3000 → **inconclusive**; games=3000; Elo=+0.2 ± 8.8; nElo=+0.3 ± 12.4; pentanomial=[98, 362, 577, 366, 97]; LLR=−1.16; W/L/D 885/883/1232; time forfeits 0
