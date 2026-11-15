@@ -53,6 +53,7 @@ add_library(apex_core STATIC
   src/search/search.cpp
   src/uci/uci.cpp
   src/util/cpuinfo.cpp
+  src/tools/datagen.cpp
 )
 target_include_directories(apex_core PUBLIC src)
 target_link_libraries(apex_core PUBLIC Threads::Threads)

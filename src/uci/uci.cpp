@@ -17,6 +17,7 @@
 #include "eval/eval_layout.h"
 #include "search/search.h"
 #include "search/tt.h"
+#include "tools/datagen.h"
 #include "util/cpuinfo.h"
 
 namespace apex {
@@ -295,6 +296,16 @@ int uci_main(int argc, char** argv) {
             std::string in_path, out_path;
             is >> in_path >> out_path;
             texel_features(in_path, out_path);
+        } else if (token == "datagen") {
+            // datagen <out> <games> <nodes> <seed>: self-play training data (src/tools/datagen.cpp).
+            DatagenConfig cfg;
+            is >> cfg.out_path >> cfg.games >> cfg.nodes >> cfg.seed;
+            if (cfg.out_path.empty()) {
+                std::printf("info string usage: datagen <out> <games> <nodes> <seed>\n");
+                std::fflush(stdout);
+            } else {
+                run_datagen(cfg);
+            }
         } else if (token == "cpuinfo") {
             std::printf("%s", cpu_report().c_str());
             std::fflush(stdout);
