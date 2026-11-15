@@ -2,7 +2,7 @@
 
 A research-driven UCI chess engine. The planned design is a CPU alpha-beta (PVS) search with a self-trained NNUE evaluation, with the GPU used for training. Every change is gated by correctness tests and SPRT match evidence.
 
-**Status:** M2 (board core) and M3 (baseline UCI engine) complete. M5 (search stack) is in progress, one SPRT-tested change at a time; the first M6 Texel-tuned evaluation is merged. Current champion: EXP-015 (bench 92341). Every accepted and rejected change is listed in [EXPERIMENTS.md](EXPERIMENTS.md), with results in [BENCHMARKS.md](BENCHMARKS.md). See [ROADMAP.md](ROADMAP.md).
+**Status:** M2–M3 complete; M5 search stack mostly done; M6 Texel-tuned HCE done; M7/M8: the first self-trained NNUE (generation 0, trained only on Apex's own self-play) is the default evaluation, embedded in the binary. Current champion: EXP-017 (bench 144781). Every accepted and rejected change is listed in [EXPERIMENTS.md](EXPERIMENTS.md), with results in [BENCHMARKS.md](BENCHMARKS.md). See [ROADMAP.md](ROADMAP.md).
 
 License: [GPL-3.0-or-later](LICENSE).
 
@@ -35,7 +35,11 @@ python3 tests/uci_test.py build/apex   # UCI conformance; needs `pip install che
 
 Apex speaks UCI and works in any UCI GUI (Cute Chess, Arena, BanksiaGUI, En Croissant) or with fastchess / cutechess-cli. Extra console commands: `d` (board), `eval`, `bench [depth]`, `cpuinfo`, `go perft <n>`, `texel-features <positions> <out>`.
 
-## Tuning the evaluation (Texel)
+## Evaluation
+
+The default evaluation is the embedded NNUE (`nets/apex-gen0a.nnue`). `setoption name EvalFile value <hce>` switches to the hand-crafted eval, and a file path loads another network. Training pipeline: [tools/nnue/README.md](tools/nnue/README.md).
+
+## Tuning the hand-crafted evaluation (Texel)
 
 ```bash
 python3 tools/texel/extract.py results/*.pgn --out positions.txt     # quiet positions + game results
@@ -47,7 +51,8 @@ python3 tools/texel/tune.py features.txt --l2 5e-9 --out src/eval/weights.inc   
 
 ```
 src/core     bitboards, magics, position, move generation, SEE
-src/eval     evaluation (bootstrap HCE; NNUE from M8)
+src/eval     evaluation: NNUE (default, src/eval/nnue) and the hand-crafted eval (bootstrap / data generation)
+nets         the default network (embedded at build time)
 src/search   search, transposition table
 src/uci      UCI protocol, bench
 src/util     CPU feature report

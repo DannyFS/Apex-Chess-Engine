@@ -193,3 +193,15 @@ Compute plan and expected value:
 - Training: about 3 h on 1 core (20 epochs at about 20k positions/s), while datagen continues on the other cores.
 - Test: SPRT [0, 10] NNUE vs HCE champion.
 - Expected: uncertain. Small first-generation nets on about 10M self-play positions often beat a tuned HCE clearly, but NNUE is slower per node than our HCE and a 128-unit net is small; a loss is possible. The point of gen 0 is also to start the self-improvement loop (better net → better data → better net).
+
+---
+
+## EXP-017: NNUE generation 0   [status: accepted, new default evaluation]
+Hypothesis: a small NNUE trained on our own HCE self-play data beats the saturated tuned HCE, both by evaluating better and by being cheaper per node than the HCE with its mobility/pawn terms.
+Implementation: see "M7/M8 plan" above. Network apex-768x128x2-1; data 9.97M positions (gen 0, labelled by the EXP-012 HCE search at 5000 nodes/move plus game results); numpy trainer, 20 epochs, Adam lr 1e-3 → 3e-4 at epoch 16, batch 16384, weights clipped to ±1.98; loss 0.75 score / 0.25 result. Inference: lazy fused accumulator updates and an AVX2 output layer (+60% NPS vs the first version, identical search).
+Result: **H1 accepted** after 280 games (LLR 2.95). Elo +129.8 ± 36.2 (nElo +160.9 ± 40.7); W/L/D 156/56/68; 0 time forfeits. See BENCHMARKS.md.
+Analysis:
+1. The NNUE path is the new champion line, as planned in ARCHITECTURE §4. The HCE stays available (`EvalFile <hce>`) as the generation-0 data source and for debugging.
+2. The net was trained to imitate HCE search scores, yet it plays much stronger: it learns a smoother, better-generalising function of the position, and it is faster per node.
+3. Next steps, in expected-value order: (a) generation-1 data from the NNUE engine (the self-improvement loop), (b) more data per generation (tens of millions of positions), (c) a larger hidden layer (256) once data allows, (d) re-tune search margins for the NNUE eval scale, (e) re-test the inconclusive search changes (EXP-014 correction history first) on the NNUE engine.
+Lesson: development smoke tests must not share cores with other work; the oversubscribed smoke test pointed in the wrong direction.

@@ -149,3 +149,10 @@ SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 116, [0, 10], cap 300
 
 ### EXP-011 (internal iterative reduction), run 1: 2026-11-15. Aborted (re-prioritisation), no result.
 Stopped at 48 games, before any rating report, to free all 4 cores for NNUE generation-0 data (see EXPERIMENTS.md "M7/M8 plan"). Not stopped because of its score. It will be re-run from zero with a new seed; the partial PGN is kept under results/aborted.
+
+### EXP-017 (NNUE generation 0): 2026-11-15. New champion; NNUE becomes the default evaluation.
+commit: (this commit and the previous one)   machine: cloud-xeon-4vcpu   net: apex-gen0a.nnue, sha256 8793dfab4359a84f17c33b3fba5da3e069c2731bb9d917758bc231036672eb38   methodology: v1.1
+change vs baseline (EXP-012, HCE): evaluation by the apex-768x128x2-1 network trained on 9,965,977 positions of our own HCE self-play (EXP-012 + datagen, 5000 nodes/move, 234 chunks of 500 games, seeds 1000–1001, 100000+, 200000+, 300000+); 20 epochs, target = 0.75 · sigmoid(score/400) + 0.25 · result; held-out MSE 0.006510
+bench: nodes=144781 (new signature: the bench now runs with the embedded net; `setoption name EvalFile value <hce>` reproduces the old 92341)
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 117, [0, 10], cap 3000 → **H1 accepted**; games=280; Elo=+129.8 ± 36.2; nElo=+160.9 ± 40.7; pentanomial=[5, 14, 37, 44, 40]; LLR=2.95; W/L/D 156/56/68; time forfeits 0
+diagnostics (development only, not decisions): a preliminary net on 3.2M positions lost −155 ± 60 Elo at 2+0.02 while datagen oversubscribed the cores (6 processes on 4 cores, 1 time forfeit), but was level at fixed 20k nodes (−24 ± 66). NPS after the lazy-accumulator/AVX2 optimisation: NNUE about 2.1M vs HCE about 1.5M on a 4 s search (loaded machine).
