@@ -1,0 +1,124 @@
+From aadc21b955fe16db60f96b43868fe47e8b8d7e89 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 14 Nov 2026 10:44:10 +0000
+Subject: [PATCH] EXP-010: continuation history (1- and 2-ply) for quiet
+ ordering
+
+cont[prev piece][prev to][piece][to] for the moves 1 and 2 plies back, added
+to butterfly history when scoring quiets; same bonus/malus and gravity.
+Null moves and the root use a NO_PIECE sentinel row.
+bench: 90986
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01G5iCbWbUZgUFhzRNanL4Ca
+---
+ src/search/search.cpp | 22 +++++++++++++++++++---
+ src/search/search.h   | 16 ++++++++++++++++
+ 2 files changed, 35 insertions(+), 3 deletions(-)
+
+diff --git a/src/search/search.cpp b/src/search/search.cpp
+index 450b00a..e7cc0f4 100644
+--- a/src/search/search.cpp
++++ b/src/search/search.cpp
+@@ -68,6 +68,7 @@ inline void apply_gravity(int& h, int bonus) {
+ void Search::clear() {
+     for (auto& k : killers) k[0] = k[1] = Move::none();
+     std::fill(&history[0][0][0], &history[0][0][0] + sizeof(history) / sizeof(int), 0);
++    std::fill(cont_hist.begin(), cont_hist.end(), std::int16_t(0));
+ }
+ 
+ // Scores moves in-place: TT move, captures/promotions by MVV-LVA, killers, then quiets by history.
+@@ -88,7 +89,9 @@ void Search::score_moves(const Position& pos, MoveList& list, Move tt_move, int
+         } else if (m == killers[ply][1]) {
+             s = (1 << 19) + 1;
+         } else {
+-            s = history[us][m.from()][m.to()];
++            const Piece pc = pos.piece_on(m.from());
++            s = history[us][m.from()][m.to()] + cont(move_stack[ply + 1], pc, m.to()) +
++                cont(move_stack[ply], pc, m.to());
+         }
+         list[i].score = s;
+     }
+@@ -102,9 +105,19 @@ void Search::update_quiet_stats(const Position& pos, Move best, const Move* quie
+         killers[ply][0] = best;
+     }
+     int bonus = std::min(16 * depth * depth + 32 * depth, 1200);
+-    apply_gravity(history[us][best.from()][best.to()], bonus);
++    auto update = [&](Move m, int b) {
++        apply_gravity(history[us][m.from()][m.to()], b);
++        const Piece pc = pos.piece_on(m.from());
++        for (int back = 1; back <= 2; ++back) {
++            std::int16_t& c = cont(move_stack[ply + 2 - back], pc, m.to());
++            int v = c;
++            apply_gravity(v, b);
++            c = std::int16_t(v);
++        }
++    };
++    update(best, bonus);
+     for (int i = 0; i < n_quiets; ++i)
+-        if (quiets[i] != best) apply_gravity(history[us][quiets[i].from()][quiets[i].to()], -bonus);
++        if (quiets[i] != best) update(quiets[i], -bonus);
+ }
+ 
+ std::int64_t Search::elapsed_ms() const {
+@@ -272,6 +285,7 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
+     if (!pv_node && !in_check && !root && depth >= 3 && static_eval >= beta && pos.plies_from_null() > 0 &&
+         pos.non_pawn_material_count(pos.side_to_move()) > 0) {
+         int R = 3 + depth / 3 + std::min((static_eval - beta) / 200, 3);
++        move_stack[ply + 2] = PieceSq{};
+         pos.make_null();
+         Value null_score = -negamax(pos, -beta, -beta + 1, depth - R, ply + 1, false);
+         pos.unmake_null();
+@@ -315,6 +329,7 @@ Value Search::negamax(Position& pos, Value alpha, Value beta, int depth, int ply
+             !pos.see_ge(m, quiet ? -50 * depth : -100 * depth))
+             continue;
+ 
++        move_stack[ply + 2] = PieceSq{pos.piece_on(m.from()), m.to()};
+         pos.make_move(m);
+         Value score;
+         if (legal == 1) {
+@@ -407,6 +422,7 @@ Value Search::qsearch(Position& pos, Value alpha, Value beta, int ply, bool pv_n
+         // EXP-008: skip captures that lose material by static exchange.
+         if (!in_check && !pos.see_ge(m, 0)) continue;
+ 
++        move_stack[ply + 2] = PieceSq{pos.piece_on(m.from()), m.to()};
+         pos.make_move(m);
+         Value score = -qsearch(pos, -beta, -alpha, ply + 1, pv_node);
+         pos.unmake_move(m);
+diff --git a/src/search/search.h b/src/search/search.h
+index 95ef03a..cf025cd 100644
+--- a/src/search/search.h
++++ b/src/search/search.h
+@@ -7,6 +7,7 @@
+ #include <cstdint>
+ #include <functional>
+ #include <string>
++#include <vector>
+ 
+ #include "core/movegen.h"
+ #include "core/position.h"
+@@ -77,6 +78,21 @@ private:
+     // Quiet-move ordering heuristics (EXP-002)
+     Move killers[MAX_PLY + 2][2] = {};
+     int history[COLOR_NB][SQUARE_NB][SQUARE_NB] = {};
++    // EXP-010: continuation history [prev piece][prev to][piece][to], indexed by the moves
++    // 1 and 2 plies back. NO_PIECE (12) marks a null move / root. Heap-allocated (1.4 MB).
++    static constexpr int CH_PIECES = PIECE_NB + 1;
++    std::vector<std::int16_t> cont_hist = std::vector<std::int16_t>(CH_PIECES * 64 * CH_PIECES * 64, 0);
++    struct PieceSq {
++        Piece pc = NO_PIECE;
++        Square sq = Square(0);
++    };
++    PieceSq move_stack[MAX_PLY + 4] = {};  // move_stack[ply + 2] = move made at ply
++    std::int16_t& cont(PieceSq prev, Piece pc, Square to) {
++        return cont_hist[((prev.pc * 64 + prev.sq) * CH_PIECES + pc) * 64 + to];
++    }
++    int cont(PieceSq prev, Piece pc, Square to) const {
++        return cont_hist[((prev.pc * 64 + prev.sq) * CH_PIECES + pc) * 64 + to];
++    }
+     void update_quiet_stats(const Position& pos, Move best, const Move* quiets, int n_quiets, int depth, int ply);
+     void score_moves(const Position& pos, MoveList& list, Move tt_move, int ply) const;
+ };
+-- 
+2.43.0
+

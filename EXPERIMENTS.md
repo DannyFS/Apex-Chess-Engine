@@ -128,3 +128,12 @@ Implementation: 64-byte buckets of 4 × 16-byte entries; same-key updates keep t
 Bench: unchanged (92972); a 1 MB depth-14 start-position search confirmed the different behaviour.
 Result: **H0 accepted** after 2806 games (LLR −2.98). Elo −5.8 ± 9.6. See BENCHMARKS.md.
 Analysis: no gain at STC with 16 MB. Likely reasons: (1) at 8+0.08 the engine searches about 1M nodes per move, so a 1M-entry table is under little pressure and replacement policy barely matters; (2) the 4-way probe costs a little speed; (3) "depth − 8·age" evicts shallow but recent entries that are useful for move ordering near the leaves. Retry candidates: re-test at LTC (64 MB, more pressure per entry) or under a smaller hash; try 3-entry buckets with 10-byte entries. The branch is kept.
+
+---
+
+## EXP-010: Continuation history   [status: inconclusive, not merged]
+Hypothesis: indexing quiet-move history by the previous one and two moves (piece, to-square) captures follow-up patterns that butterfly history misses, so ordering and cutoffs improve.
+Implementation: cont[prev piece][prev to][piece][to] (int16, heap) for 1 and 2 plies back, added to butterfly history in quiet scoring; same bonus/malus and gravity. Null moves and the root use a sentinel row.
+Bench: 92972 → 90986.
+Result: **inconclusive** at the 3000-game cap. Elo +3.0 ± 9.4, LLR −0.25. See BENCHMARKS.md.
+Analysis: in modern engines continuation history is a major ordering signal, but here it does not show up at this resolution. Likely reasons: (1) it is used only for ordering, not in LMR/pruning decisions, where most of its value comes from in strong engines; (2) with LMP pruning late quiets anyway, ordering among quiets matters less; (3) the HCE is noisy. Retry candidate after M6/NNUE: continuation history combined with history-based LMR adjustments. The code is kept as a patch.

@@ -114,3 +114,9 @@ commit: 5351ba5 (branch exp/009-tt-buckets, not merged)   machine: cloud-xeon-4v
 change vs baseline (EXP-008): 4-entry, 64-byte TT buckets; new keys evict an empty slot, else the lowest depth − 8·age entry
 bench: nodes=92972 (unchanged; the 16 MB bench table never fills at depth 6)
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 109, [0, 10], cap 3000 → **H0 accepted**; games=2806; Elo=−5.8 ± 9.6; nElo=−7.8 ± 12.9; pentanomial=[117, 343, 520, 316, 107]; LLR=−2.98; W/L/D 825/872/1109; time forfeits 0
+
+### EXP-010 (continuation history): 2026-11-15. Inconclusive, not merged.
+commit: aadc21b (branch exp/010-conthist, not merged)   machine: cloud-xeon-4vcpu   net: none   methodology: v1.1
+change vs baseline (EXP-008): 1- and 2-ply continuation history added to quiet-move ordering scores
+bench: nodes=90986
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 110, [0, 10], cap 3000 → **inconclusive**; games=3000; Elo=+3.0 ± 9.4; nElo=+4.0 ± 12.4; pentanomial=[124, 341, 553, 349, 133]; LLR=−0.25; W/L/D 932/906/1162; time forfeits 0
