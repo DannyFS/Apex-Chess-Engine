@@ -170,3 +170,5 @@ Implementation: at depth ≥ 8, for the TT move with a lower-bound entry of dept
 Bench: depth 6 unchanged (92341); depth 9 494602 → 685369 (measured on the EXP-008 base; on EXP-015 the champion value is from this entry).
 Result: **H1 accepted** after 770 games (LLR 2.95). Elo +37.6 ± 17.9 (nElo +51.9 ± 24.5); W/L/D 258/175/337; pentanomial [15, 79, 143, 104, 44]; 0 time forfeits.
 Analysis: a clear gain even at STC (usually reported as larger at longer time controls). It also suggests the earlier, crude check extension (EXP-006) mostly targeted the same forced lines. Untuned parameters (depth 8, margin 2d, half-depth verification) are SPSA candidates; double extensions and negative extensions are later experiments.
+
+Correction (EXP-012 entry above): the depth-9 bench figures mixed two bases. On the same base, EXP-015 (before EXP-012) gives bench 9 = 597373 nodes and EXP-012 gives 685369. The earlier "494602 → 783501" pair was measured on the EXP-008 base.
