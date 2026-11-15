@@ -133,3 +133,10 @@ change vs baseline (EXP-015): pawn-key correction history added to the static ev
 bench: nodes=110102
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 114, [0, 10], cap 3000 → **inconclusive**; games=3000; Elo=+9.6 ± 8.8; nElo=+13.6 ± 12.4; pentanomial=[81, 354, 580, 371, 114]; LLR=2.14; W/L/D 941/858/1201; time forfeits 0
 note: the 95% interval excludes zero, but the pre-declared rule (v1.1) is "not merged at the cap". It will get a fresh, independent confirmation test (new seed, no reuse of these games) rather than an exception.
+
+### EXP-012 (singular extensions): 2026-11-15. New champion.
+commit: (this commit)   machine: cloud-xeon-4vcpu   net: none (tuned HCE)   methodology: v1.1
+change vs baseline (EXP-015): singular extensions with multi-cut (depth ≥ 8; TT lower bound with depth ≥ d−3; singular beta = tt_value − 2d; verification at (d−1)/2)
+bench: nodes=92341 (unchanged: never triggers at bench depth 6); bench depth 9: 685369
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 112, [0, 10], cap 3000 → **H1 accepted**; games=770; Elo=+37.6 ± 17.9; nElo=+51.9 ± 24.5; pentanomial=[15, 79, 143, 104, 44]; LLR=2.95; W/L/D 258/175/337; time forfeits 0
+methodology note: the depth-6 bench signature cannot see changes that act only at depth ≥ 8. From now on, such changes also record `bench 9` in their entry. Moving the signature to a deeper bench is a candidate for methodology v2.

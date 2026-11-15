@@ -161,3 +161,12 @@ Implementation: corr[stm][pawn_key & 16383] (scaled by 256) added to the static 
 Bench: 92341 → 110102.
 Result: **inconclusive** at the 3000-game cap: Elo +9.6 ± 8.8 (nElo +13.6 ± 12.4), LLR 2.14 (73% of the way to H1). See BENCHMARKS.md.
 Analysis: very likely a real gain of about +5 to +15 Elo, below what [0, 10] can confirm in 3000 games. Plan: an independent confirmation test after the current queue (fresh seed), possibly with bounds [0, 5] and a larger cap, or bundled with a Texel re-tune if both pass separately.
+
+---
+
+## EXP-012: Singular extensions with multi-cut   [status: accepted]
+Hypothesis: when the TT move is much better than every alternative (singular), it is a forced move and should be searched one ply deeper. When even the alternatives beat beta at reduced depth, the node has several refutations and can be cut (multi-cut).
+Implementation: at depth ≥ 8, for the TT move with a lower-bound entry of depth ≥ d − 3 and a non-mate score: search all other moves at depth (d − 1)/2 with a null window at singular_beta = tt_value − 2d (the TT move is excluded via excluded[ply]). All fail low → extension 1; singular_beta ≥ beta → return singular_beta. RFP, NMP, TT cutoffs and TT stores are disabled inside the excluded-move search; a node whose only legal move is excluded returns alpha.
+Bench: depth 6 unchanged (92341); depth 9 494602 → 685369 (measured on the EXP-008 base; on EXP-015 the champion value is from this entry).
+Result: **H1 accepted** after 770 games (LLR 2.95). Elo +37.6 ± 17.9 (nElo +51.9 ± 24.5); W/L/D 258/175/337; pentanomial [15, 79, 143, 104, 44]; 0 time forfeits.
+Analysis: a clear gain even at STC (usually reported as larger at longer time controls). It also suggests the earlier, crude check extension (EXP-006) mostly targeted the same forced lines. Untuned parameters (depth 8, margin 2d, half-depth verification) are SPSA candidates; double extensions and negative extensions are later experiments.
