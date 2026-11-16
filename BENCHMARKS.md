@@ -169,3 +169,10 @@ change vs baseline (EXP-018, gen1a): net retrained on gen 1 (14,928,296) + gen 2
 bench: nodes=79031
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 119, [0, 10], cap 3000 → **H1 accepted**; games=416; Elo=+67.7 ± 23.7; nElo=+98.0 ± 33.4; pentanomial=[4, 32, 80, 64, 28]; LLR=3.00; W/L/D 176/96/144; time forfeits 0
 note: during this SPRT a 256-hidden training run was suspended (SIGSTOP) and datagen stopped, so the 3 game slots had the cores to themselves.
+
+### EXP-020 (256-hidden NNUE, gen-2 data): 2026-11-17. Inconclusive, not merged.
+commit: ee1e699 (branch exp/020-nnue256, not merged; patch in experiments/patches)   machine: cloud-xeon-4vcpu   net: apex-gen2b-256.nnue, sha256 5a8751c860c96ea77e1392200f56a83a0eeb2017caa33091a2b51cbf35667428   methodology: v1.1
+change vs baseline (EXP-019, 128 hidden): same data and trainer, 256 hidden units (build APEX_NNUE_HIDDEN=256); held-out MSE 0.006977 vs about 0.00735
+bench: nodes=86926; NPS about equal to the 128 build (4 s search: 2.03M vs 1.86M on a loaded machine)
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 120, [0, 10], cap 3000 → **inconclusive**; games=3000; Elo=−0.7 ± 8.6; nElo=−1.0 ± 12.4; pentanomial=[97, 341, 618, 359, 85]; LLR=−1.49; W/L/D 967/973/1060; time forfeits 0
+diagnostic: on 300 gen-3 positions the 256 net's evals are about 11% larger in magnitude (mean |eval| 421 vs 380 cp; search labels 485), with mean |difference| 86 cp.

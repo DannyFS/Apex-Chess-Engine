@@ -220,3 +220,10 @@ Analysis: the self-improvement loop works and is still in its steep part. Caveat
 Hypothesis: another loop iteration (data from the gen-1 engine; drop the HCE-labelled gen-0 data) gives a further gain.
 Result: **H1 accepted** after 416 games. Elo +67.7 ± 23.7 (gen 1 → gen 2), smaller than gen 0 → gen 1 (+195), as expected when the loop starts to converge for a fixed network size.
 Analysis: diminishing returns at 128 hidden units suggest capacity is becoming the limit. A 256-unit net trained on the same data is running (EXP-020).
+
+---
+
+## EXP-020: 256 hidden units   [status: inconclusive, not merged]
+Hypothesis: the diminishing gen-1 → gen-2 gain means the 128-unit net is capacity-limited; a 256-unit net on the same 29.9M positions plays better.
+Result: held-out loss improved 5% (0.00735 → 0.00698) and NPS stayed the same (lazy updates), but the match shows **no measurable gain**: −0.7 ± 8.6 Elo over 3000 games.
+Analysis: lower loss did not turn into wins. Candidate explanations: (1) the data, not capacity, is the limit: 5000-node self-play labels are noisy, and the 256 net may fit label noise that the search does not benefit from; (2) its evals are about 11% larger, which changes the effective pruning margins (RFP/futility/SEE thresholds were set for the HCE scale); (3) 30M positions may be too few for 2× the parameters. Next: keep 128 for the gen loop; revisit size after (a) more data per generation, (b) margin re-tuning for the NNUE scale, (c) possibly deeper datagen (more nodes per move).
