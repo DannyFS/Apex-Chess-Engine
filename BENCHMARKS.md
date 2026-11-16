@@ -156,3 +156,9 @@ change vs baseline (EXP-012, HCE): evaluation by the apex-768x128x2-1 network tr
 bench: nodes=144781 (new signature: the bench now runs with the embedded net; `setoption name EvalFile value <hce>` reproduces the old 92341)
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 117, [0, 10], cap 3000 → **H1 accepted**; games=280; Elo=+129.8 ± 36.2; nElo=+160.9 ± 40.7; pentanomial=[5, 14, 37, 44, 40]; LLR=2.95; W/L/D 156/56/68; time forfeits 0
 diagnostics (development only, not decisions): a preliminary net on 3.2M positions lost −155 ± 60 Elo at 2+0.02 while datagen oversubscribed the cores (6 processes on 4 cores, 1 time forfeit), but was level at fixed 20k nodes (−24 ± 66). NPS after the lazy-accumulator/AVX2 optimisation: NNUE about 2.1M vs HCE about 1.5M on a 4 s search (loaded machine).
+
+### EXP-018 (NNUE generation 1): 2026-11-16. New champion.
+commit: (this commit)   machine: cloud-xeon-4vcpu   net: apex-gen1a.nnue, sha256 11a3b780eec529c1cf7b4c8339bbda58698253899be2debc8185cb36c49a5bdd   methodology: v1.1
+change vs baseline (EXP-017, gen0a): network retrained (same architecture and trainer settings, 15 epochs) on gen 0 (9,965,977 positions) + gen 1 (14,928,296 positions from self-play of the EXP-017 engine at 5000 nodes/move, 337 chunks, seeds 1000000+, 2000000+, 3000000+, 4000000+); held-out MSE 0.007191 (not comparable to gen0a's: different validation mix)
+bench: nodes=111869
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 118, [0, 10], cap 3000 → **H1 accepted**; games=214; Elo=+195.2 ± 45.5; nElo=+246.9 ± 46.6; pentanomial=[1, 8, 24, 29, 45]; LLR=2.97; W/L/D 142/33/39; time forfeits 0
