@@ -176,3 +176,9 @@ change vs baseline (EXP-019, 128 hidden): same data and trainer, 256 hidden unit
 bench: nodes=86926; NPS about equal to the 128 build (4 s search: 2.03M vs 1.86M on a loaded machine)
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 120, [0, 10], cap 3000 → **inconclusive**; games=3000; Elo=−0.7 ± 8.6; nElo=−1.0 ± 12.4; pentanomial=[97, 341, 618, 359, 85]; LLR=−1.49; W/L/D 967/973/1060; time forfeits 0
 diagnostic: on 300 gen-3 positions the 256 net's evals are about 11% larger in magnitude (mean |eval| 421 vs 380 cp; search labels 485), with mean |difference| 86 cp.
+
+### EXP-021 (NNUE generation 3, 128 hidden): 2026-11-17. New champion.
+commit: (this commit)   machine: cloud-xeon-4vcpu   net: apex-gen3a.nnue, sha256 6212235d02a260c3614923945c1e542c53d31d5419b62eab713b0c108747f857   methodology: v1.1
+change vs baseline (EXP-019, gen2a): net retrained on gen 2 (14,947,206) + gen 3 (13,811,905 positions from the EXP-019 engine, 298 chunks, seeds 100000000+ … 300000000+); 15 epochs; held-out MSE 0.007515
+bench: nodes=93803
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 121, [0, 10], cap 3000 → **H1 accepted**; games=782; Elo=+37.9 ± 18.1; nElo=+51.5 ± 24.4; pentanomial=[19, 74, 147, 105, 46]; LLR=2.96; W/L/D 303/218/261; time forfeits 0

@@ -227,3 +227,9 @@ Analysis: diminishing returns at 128 hidden units suggest capacity is becoming t
 Hypothesis: the diminishing gen-1 → gen-2 gain means the 128-unit net is capacity-limited; a 256-unit net on the same 29.9M positions plays better.
 Result: held-out loss improved 5% (0.00735 → 0.00698) and NPS stayed the same (lazy updates), but the match shows **no measurable gain**: −0.7 ± 8.6 Elo over 3000 games.
 Analysis: lower loss did not turn into wins. Candidate explanations: (1) the data, not capacity, is the limit: 5000-node self-play labels are noisy, and the 256 net may fit label noise that the search does not benefit from; (2) its evals are about 11% larger, which changes the effective pruning margins (RFP/futility/SEE thresholds were set for the HCE scale); (3) 30M positions may be too few for 2× the parameters. Next: keep 128 for the gen loop; revisit size after (a) more data per generation, (b) margin re-tuning for the NNUE scale, (c) possibly deeper datagen (more nodes per move).
+
+---
+
+## EXP-021: NNUE generation 3 (128 hidden)   [status: accepted]
+Result: **H1 accepted** after 782 games, Elo +37.9 ± 18.1 over gen 2.
+Analysis: the loop keeps paying but with shrinking steps (gen 0→1 +195, 1→2 +68, 2→3 +38), the usual convergence pattern at fixed data size per generation and fixed network size. Levers for the next steps: more positions per generation, more nodes per datagen move (better labels), and re-testing capacity (256) once labels are better.

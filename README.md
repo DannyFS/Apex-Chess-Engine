@@ -2,7 +2,7 @@
 
 A research-driven UCI chess engine. The planned design is a CPU alpha-beta (PVS) search with a self-trained NNUE evaluation, with the GPU used for training. Every change is gated by correctness tests and SPRT match evidence.
 
-**Status:** M2–M3 complete; M5 search stack mostly done; M6 Texel-tuned HCE done; M7/M8: the first self-trained NNUE (generation 0, trained only on Apex's own self-play) is the default evaluation, embedded in the binary. Current champion: EXP-019, NNUE generation 2 (bench 79031). Every accepted and rejected change is listed in [EXPERIMENTS.md](EXPERIMENTS.md), with results in [BENCHMARKS.md](BENCHMARKS.md). See [ROADMAP.md](ROADMAP.md).
+**Status:** M2–M3 complete; M5 search stack mostly done; M6 Texel-tuned HCE done; M7/M8: the first self-trained NNUE (generation 0, trained only on Apex's own self-play) is the default evaluation, embedded in the binary. Current champion: EXP-021, NNUE generation 3 (bench 93803). Every accepted and rejected change is listed in [EXPERIMENTS.md](EXPERIMENTS.md), with results in [BENCHMARKS.md](BENCHMARKS.md). See [ROADMAP.md](ROADMAP.md).
 
 License: [GPL-3.0-or-later](LICENSE).
 
@@ -37,7 +37,7 @@ Apex speaks UCI and works in any UCI GUI (Cute Chess, Arena, BanksiaGUI, En Croi
 
 ## Evaluation
 
-The default evaluation is the embedded NNUE (`nets/apex-gen2a.nnue`). `setoption name EvalFile value <hce>` switches to the hand-crafted eval, and a file path loads another network. Training pipeline: [tools/nnue/README.md](tools/nnue/README.md).
+The default evaluation is the embedded NNUE (`nets/apex-gen3a.nnue`). `setoption name EvalFile value <hce>` switches to the hand-crafted eval, and a file path loads another network. Training pipeline: [tools/nnue/README.md](tools/nnue/README.md).
 
 ## Tuning the hand-crafted evaluation (Texel)
 
