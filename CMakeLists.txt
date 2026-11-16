@@ -46,7 +46,7 @@ find_package(Threads REQUIRED)
 
 # Default NNUE network, embedded in the binary so the engine never silently runs
 # without it (ARCHITECTURE.md section 5). Override with -DAPEX_NET=<file>.
-set(APEX_NET "${CMAKE_SOURCE_DIR}/nets/apex-gen0a.nnue" CACHE FILEPATH "NNUE network embedded in the binary")
+set(APEX_NET "${CMAKE_SOURCE_DIR}/nets/apex-gen1a.nnue" CACHE FILEPATH "NNUE network embedded in the binary")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${APEX_NET}")
 file(READ "${APEX_NET}" APEX_NET_HEX HEX)
 string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," APEX_NET_BYTES "${APEX_NET_HEX}")
