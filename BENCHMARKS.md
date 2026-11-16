@@ -162,3 +162,10 @@ commit: (this commit)   machine: cloud-xeon-4vcpu   net: apex-gen1a.nnue, sha256
 change vs baseline (EXP-017, gen0a): network retrained (same architecture and trainer settings, 15 epochs) on gen 0 (9,965,977 positions) + gen 1 (14,928,296 positions from self-play of the EXP-017 engine at 5000 nodes/move, 337 chunks, seeds 1000000+, 2000000+, 3000000+, 4000000+); held-out MSE 0.007191 (not comparable to gen0a's: different validation mix)
 bench: nodes=111869
 SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 118, [0, 10], cap 3000 → **H1 accepted**; games=214; Elo=+195.2 ± 45.5; nElo=+246.9 ± 46.6; pentanomial=[1, 8, 24, 29, 45]; LLR=2.97; W/L/D 142/33/39; time forfeits 0
+
+### EXP-019 (NNUE generation 2, 128 hidden): 2026-11-16. New champion.
+commit: (this commit)   machine: cloud-xeon-4vcpu   net: apex-gen2a.nnue, sha256 2863874b4cf6d40f0c55c819f17bc94ce42c90af3472311fe00820e352d65394   methodology: v1.1
+change vs baseline (EXP-018, gen1a): net retrained on gen 1 (14,928,296) + gen 2 (14,947,206 positions from the EXP-018 engine, 335 chunks, seeds 10000000+ … 40000000+); gen-0 (HCE) data dropped; 15 epochs; held-out MSE 0.007347 (epoch 13 of the log; the written file is the epoch-15 state)
+bench: nodes=79031
+SPRT: STC 8+0.08, 16 MB, conc 3, UHO_Lichess_4852_v1, seed 119, [0, 10], cap 3000 → **H1 accepted**; games=416; Elo=+67.7 ± 23.7; nElo=+98.0 ± 33.4; pentanomial=[4, 32, 80, 64, 28]; LLR=3.00; W/L/D 176/96/144; time forfeits 0
+note: during this SPRT a 256-hidden training run was suspended (SIGSTOP) and datagen stopped, so the 3 game slots had the cores to themselves.
