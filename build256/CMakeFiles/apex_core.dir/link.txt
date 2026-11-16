@@ -1,0 +1,2 @@
+"/usr/bin/gcc-ar-13" cr libapex_core.a CMakeFiles/apex_core.dir/src/core/bitboard.cpp.o CMakeFiles/apex_core.dir/src/core/position.cpp.o CMakeFiles/apex_core.dir/src/core/movegen.cpp.o CMakeFiles/apex_core.dir/src/eval/eval.cpp.o CMakeFiles/apex_core.dir/src/eval/nnue/nnue.cpp.o CMakeFiles/apex_core.dir/src/search/tt.cpp.o CMakeFiles/apex_core.dir/src/search/search.cpp.o CMakeFiles/apex_core.dir/src/uci/uci.cpp.o CMakeFiles/apex_core.dir/src/util/cpuinfo.cpp.o CMakeFiles/apex_core.dir/src/tools/datagen.cpp.o
+"/usr/bin/gcc-ranlib-13" libapex_core.a

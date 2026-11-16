@@ -175,14 +175,15 @@ void Evaluator::update_to_top() {
 }
 
 namespace {
-// Sum over one perspective of clamp(acc, 0, QA)^2 * w. Each term is at most
-// 255 * 255 * 127 (8.3M), so the 128-term sum (at most 1.06e9) fits in int32.
+// Sum over 128 neurons of clamp(acc, 0, QA)^2 * w. Each term is at most
+// 255 * 255 * 127 (8.3M), so a 128-term block (at most 1.06e9) fits in int32;
+// blocks are added in int64 (screlu_dot_all).
 inline std::int32_t screlu_dot(const std::int16_t* acc, const std::int16_t* w) {
 #if defined(__AVX2__)
     const __m256i zero = _mm256_setzero_si256();
     const __m256i qa = _mm256_set1_epi16(QA);
     __m256i sum = _mm256_setzero_si256();
-    for (int i = 0; i < HIDDEN; i += 16) {
+    for (int i = 0; i < 128; i += 16) {
         __m256i x = _mm256_load_si256(reinterpret_cast<const __m256i*>(acc + i));
         x = _mm256_min_epi16(_mm256_max_epi16(x, zero), qa);
         const __m256i wv = _mm256_load_si256(reinterpret_cast<const __m256i*>(w + i));
@@ -195,12 +196,18 @@ inline std::int32_t screlu_dot(const std::int16_t* acc, const std::int16_t* w) {
     return _mm_cvtsi128_si32(s);
 #else
     std::int32_t sum = 0;
-    for (int i = 0; i < HIDDEN; ++i) {
+    for (int i = 0; i < 128; ++i) {
         const int x = std::clamp<int>(acc[i], 0, QA);
         sum += x * w[i] * x;
     }
     return sum;
 #endif
+}
+
+inline std::int64_t screlu_dot_all(const std::int16_t* acc, const std::int16_t* w) {
+    std::int64_t sum = 0;
+    for (int b = 0; b < HIDDEN; b += 128) sum += screlu_dot(acc + b, w + b);
+    return sum;
 }
 }  // namespace
 
@@ -208,7 +215,7 @@ Value Evaluator::evaluate(const Position& pos) {
     if (!computed[top]) update_to_top();
     const Accumulator& a = stack[top];
     const Color us = pos.side_to_move();
-    const std::int64_t sum = std::int64_t(screlu_dot(a.v[us], net->out_w)) + screlu_dot(a.v[~us], net->out_w + HIDDEN);
+    const std::int64_t sum = screlu_dot_all(a.v[us], net->out_w) + screlu_dot_all(a.v[~us], net->out_w + HIDDEN);
     // sum is in units QA*QA*QB; SCReLU output / QA, plus bias (QA*QB), then scale.
     const std::int64_t v = (sum / QA + net->out_b) * SCALE / (std::int64_t(QA) * QB);
     return Value(std::clamp<std::int64_t>(v, VALUE_MATED_IN_MAX_PLY + 1, VALUE_MATE_IN_MAX_PLY - 1));

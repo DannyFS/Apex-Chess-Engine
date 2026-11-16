@@ -1,4 +1,4 @@
-// Apex chess engine: NNUE evaluation (M8), architecture "apex-768x128x2-1".
+// Apex chess engine: NNUE evaluation (M8), architecture "apex-768xHx2-1" (H = 128 by default).
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Inputs: 768 features per perspective (own/their colour x piece type x square, the
@@ -19,7 +19,11 @@
 namespace apex::nnue {
 
 constexpr int INPUTS = 768;
-constexpr int HIDDEN = 128;
+#ifndef APEX_NNUE_HIDDEN
+#define APEX_NNUE_HIDDEN 128
+#endif
+constexpr int HIDDEN = APEX_NNUE_HIDDEN;  // build option (CMake APEX_NNUE_HIDDEN); must match the net file
+static_assert(HIDDEN % 128 == 0, "hidden size must be a multiple of 128");
 constexpr int QA = 255;
 constexpr int QB = 64;
 constexpr int SCALE = 400;

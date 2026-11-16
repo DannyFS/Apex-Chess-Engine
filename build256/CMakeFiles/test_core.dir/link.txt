@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -O3 -fno-plt -flto=auto -fno-fat-lto-objects CMakeFiles/test_core.dir/tests/test_core.cpp.o -o test_core  libapex_core.a 

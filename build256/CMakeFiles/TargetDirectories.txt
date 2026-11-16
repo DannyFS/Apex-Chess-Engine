@@ -1,0 +1,6 @@
+/tmp/claude-0/wt-m9/build256/CMakeFiles/apex_core.dir
+/tmp/claude-0/wt-m9/build256/CMakeFiles/apex.dir
+/tmp/claude-0/wt-m9/build256/CMakeFiles/test_core.dir
+/tmp/claude-0/wt-m9/build256/CMakeFiles/test.dir
+/tmp/claude-0/wt-m9/build256/CMakeFiles/edit_cache.dir
+/tmp/claude-0/wt-m9/build256/CMakeFiles/rebuild_cache.dir

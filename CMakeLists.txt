@@ -70,6 +70,8 @@ add_library(apex_core STATIC
 )
 target_include_directories(apex_core PUBLIC src)
 target_include_directories(apex_core PRIVATE "${CMAKE_BINARY_DIR}/generated")
+set(APEX_NNUE_HIDDEN 128 CACHE STRING "NNUE hidden layer size (multiple of 128); must match APEX_NET")
+target_compile_definitions(apex_core PUBLIC APEX_NNUE_HIDDEN=${APEX_NNUE_HIDDEN})
 target_link_libraries(apex_core PUBLIC Threads::Threads)
 
 add_executable(apex src/main.cpp)

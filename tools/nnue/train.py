@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Apex chess engine: NNUE trainer for the "apex-768x128x2-1" network (numpy + scipy, CPU).
+# Apex chess engine: NNUE trainer for "apex-768xHx2-1" networks (numpy + scipy, CPU).
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Input: one or more files of 70-byte records written by `apex "nnue-data <txt> <bin>"`.
@@ -21,7 +21,8 @@ import time
 import numpy as np
 import scipy.sparse as sp
 
-INPUTS, HIDDEN, QA, QB, SCALE = 768, 128, 255, 64, 400
+INPUTS, QA, QB, SCALE = 768, 255, 64, 400
+HIDDEN = 128  # set from --hidden in main(); must match the engine build (CMake APEX_NNUE_HIDDEN)
 CLIP = 1.98
 REC = np.dtype([("n", "u1"), ("stm", "u1"), ("score", "<i2"), ("result", "u1"), ("pad", "u1"), ("f", "<u2", (32,))])
 
@@ -123,7 +124,11 @@ def main():
     ap.add_argument("--wdl", type=float, default=0.25, help="weight of the game result in the target")
     ap.add_argument("--valid", type=float, default=0.01)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--hidden", type=int, default=128, help="hidden layer size (multiple of 128)")
+    ap.add_argument("--init", help="start from this network file instead of random weights")
     args = ap.parse_args()
+    global HIDDEN
+    HIDDEN = args.hidden
 
     t0 = time.time()
     data = load(args.data)
@@ -136,6 +141,21 @@ def main():
     vt = targets(valid, 1.0 - args.wdl)
 
     net = Net(rng)
+    if args.init:
+        raw = open(args.init, "rb").read()
+        if raw[:4] != b"APXN" or struct.unpack("<III", raw[4:16]) != (1, INPUTS, HIDDEN):
+            sys.exit(f"--init {args.init}: not an apex-768x{HIDDEN}x2-1 network")
+        o = 16
+        def take(n, scale):
+            nonlocal o
+            a = np.frombuffer(raw, "<i2", n, o).astype(np.float32) / scale
+            o += 2 * n
+            return a
+        net.W1 = take(INPUTS * HIDDEN, QA).reshape(INPUTS, HIDDEN).copy()
+        net.b1 = take(HIDDEN, QA).copy()
+        net.w2 = take(2 * HIDDEN, QB).copy()
+        net.b2 = take(1, QA * QB).copy()
+        print(f"initialised from {args.init}", flush=True)
     m = [np.zeros_like(p) for p in net.params()]
     v = [np.zeros_like(p) for p in net.params()]
     b1, b2, eps, step = 0.9, 0.999, 1e-8, 0
